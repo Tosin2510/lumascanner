@@ -31,4 +31,14 @@ class CameraService{
 
     return _cameraController!.initialize();
   }
+
+  Future<String> capturePhoto() async {
+    final image = await controller!.takePicture();
+    return image.path;
+  }
+
+  Future<void> dispose() async {
+    await _cameraController?.dispose();
+    _cameraController = null;
+  }
 }
