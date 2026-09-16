@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:lumascanner/camera_screen.dart';
 
 List<CameraDescription> cameras = [];
 Future<void> main() async {
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LumaScanner',
-      home: const MainScreen(),
+      home: const CameraScreen(),
     );
   }
 }
