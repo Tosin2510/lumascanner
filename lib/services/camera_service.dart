@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:camera/camera.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class CameraService{
   // Class variables
@@ -14,7 +18,7 @@ class CameraService{
     return _cameraController!;
   }
 
-// Initialize the devicee camera and make the controller the back camera
+// Initialize the devicee camera and make the controllser the back camera
 // If the back camera is not available, then use the first camera.
   Future<void> initializeCamera() async {
     _cameras = await availableCameras();
@@ -33,8 +37,18 @@ class CameraService{
   }
 
   Future<String> capturePhoto() async {
-    final image = await controller!.takePicture();
-    return image.path;
+    final XFile image = await controller!.takePicture();
+    final appDir = await getApplicationDocumentsDirectory();
+    final scanDocsDir = Directory(path.join(appDir.path, 'scan_docs'));
+    if (!await scanDocsDir.exists()) {
+      await scanDocsDir.create(recursive: true);
+    }
+    final name = 'scan${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final anotherPath = path.join(scanDocsDir.path, name);
+    await File(image.path).copy(anotherPath);
+    await File(image.path).delete();
+
+    return anotherPath;
   }
 
   Future<void> dispose() async {
