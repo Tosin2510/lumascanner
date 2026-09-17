@@ -5,7 +5,9 @@ import 'package:lumascanner/camera_screen.dart';
 List<CameraDescription> cameras = [];
 Future<void> main() async {
   try {
+    // This part ensures that the camera is initialized before the app starts.
     WidgetsFlutterBinding.ensureInitialized();
+    // Checks for available cameras, i only need the back camera in this case.
     cameras = await availableCameras();
   } on CameraException catch (e){
     _logError(e.code, e.description);
@@ -25,6 +27,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// This functions is used to log the errors that are related to the camera.
 void _logError(String code, String? message) {
   debugPrint('Error: $code${message == null ? '' : '\nError Message: $message'}');
 }
