@@ -2,12 +2,13 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:lumascanner/image_picker_service.dart';
+import 'package:lumascanner/services/image_picker_service.dart';
 import 'package:lumascanner/scan_preview_screen.dart';
 import 'package:lumascanner/services/camera_service.dart';
 
 class CameraScreen extends StatefulWidget{
-  const CameraScreen({super.key});
+  final bool returnPreviewPages;
+  const CameraScreen({super.key, this.returnPreviewPages = false});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -19,6 +20,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   final _cameraService = CameraService();
   bool _isReady = false;
   bool _permissionDenied = false;
+  bool _isFlashOn = false;
+  bool _suggestLowLight = false;
+  DateTime _luminanceCheck = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +38,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         setState((){
           _isReady = true;
         });
+       _startMonitoring();
       }
     } catch (e) {
       if (mounted) {
@@ -46,6 +52,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _cameraService.controller?.stopImageStream();
     _cameraService.dispose();
     super.dispose();
   }
@@ -59,6 +66,46 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  Widget _circleIconButton({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.4),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        onPressed: onPressed,
+        icon: Icon(icon, color: Colors.white, size: 18)
+      )
+    );
+  }
+
+  void _startMonitoring() {
+  _cameraService.controller!.startImageStream((CameraImage image) {
+    if (DateTime.now().difference(_luminanceCheck) < const Duration(seconds: 1)) return;
+    _luminanceCheck = DateTime.now();
+
+    final brightness = _avgLuminance(image);
+
+    final isDark = brightness < 60; 
+    if (isDark != _suggestLowLight && mounted) {
+      setState(() => _suggestLowLight = isDark && !_isFlashOn);
+    }
+  });
+}
+
+double _avgLuminance(CameraImage image) {
+  final yPlane = image.planes[0].bytes;
+  int totalVal = 0;
+  for (int i = 0; i < yPlane.length; i += 10) {
+    totalVal += yPlane[i];
+  }
+  return totalVal / (yPlane.length / 10);
+}
+
+
   Future<void> _onCapture() async {
     try {
       final imagePath = await _cameraService.capturePhoto();
@@ -70,6 +117,23 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     }
   }
 
+  Future<void> _controlFlash() async {
+  if (_cameraService.controller == null || !_cameraService.controller!.value.isInitialized) {
+    return;
+  }
+
+  try {
+    final flashState = _isFlashOn ? FlashMode.off : FlashMode.torch;
+    await _cameraService.setFlashLight(flashState);
+
+    if (mounted) {
+      setState(() => _isFlashOn = !_isFlashOn);
+    }
+  } catch (e) {
+    debugPrint('Flash toggle failed: $e');
+  }
+}
+
   Future<void> _pickImagesFromGallery() async {
     final picked = await _imagePickerService.pickMultipleImageFromGallery();
     if (picked.isNotEmpty && mounted) {
@@ -80,7 +144,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   }
 
   void _openPreviewPages() {
-    if (_captured.isNotEmpty) {
+    if (widget.returnPreviewPages) {
+      Navigator.pop(context, _captured);
+      
+    } else {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -119,6 +186,27 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
             ),
           ),
           Positioned(
+            top: 14,
+            left: 14,
+            right: 14,
+            child: SafeArea(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _circleIconButton(
+                    icon: Icons.close,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  _circleIconButton(
+                    icon: _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                    onPressed: _controlFlash,
+                  )
+                ],
+              )
+            )
+          ),
+
+          Positioned(
             bottom: 24,
             left: 0,
             right: 0,
@@ -137,6 +225,35 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     child: _reviewButton(),
                   )
                 ]
+              ),
+            ),
+          ),
+          if (_suggestLowLight)
+          Positioned(
+            top: 70,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: () {
+                  _controlFlash();
+                  setState(() => _suggestLowLight = false);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.flash_on, color: Colors.amber, size: 16),
+                      SizedBox(width: 6),
+                      Text('Light is low, tap to turn on flash.', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
