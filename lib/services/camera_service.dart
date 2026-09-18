@@ -36,6 +36,10 @@ class CameraService{
     return _cameraController!.initialize();
   }
 
+  Future<void> setFlashLight(FlashMode flash) async {
+    await controller!.setFlashMode(flash);
+  }
+
   Future<String> capturePhoto() async {
     final XFile image = await controller!.takePicture();
     final appDir = await getApplicationDocumentsDirectory();
