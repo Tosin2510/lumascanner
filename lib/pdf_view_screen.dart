@@ -143,10 +143,16 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       body: PdfPreview(
         key: ValueKey(_currentpdfPath),
         build: (format) => File(_currentpdfPath).readAsBytes(),
+        useActions: false,
+        scrollViewDecoration: const BoxDecoration(color: Colors.black),
+        previewPageMargin: EdgeInsets.zero,
+        pdfPreviewPageDecoration: const BoxDecoration(),
+        padding: EdgeInsets.zero,
+        canChangePageFormat: false,
+        canChangeOrientation: false,
+        loadingWidget: const Center(child: CircularProgressIndicator(color: Colors.white)),
         allowPrinting: true,
         allowSharing: false,
-        canChangeOrientation: false,
-        canChangePageFormat: false,
       ),
       bottomNavigationBar: BottomAppBar(
         child: Row(
