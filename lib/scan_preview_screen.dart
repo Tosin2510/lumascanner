@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:lumascanner/pdf_view_screen.dart';
+import 'package:lumascanner/services/pdf_service.dart';
 
 class ScanPreviewScreen extends StatefulWidget {
   final List<XFile> images;
@@ -14,6 +16,7 @@ class ScanPreviewScreen extends StatefulWidget {
 }
 
 class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
+  final _pdfService = PdfService();
   int _currentIndex = 0;
   late PageController _pageController;
   late List<XFile> _pages;
@@ -29,6 +32,20 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pdfPart() async {
+    final pathToPdf = await _pdfService.createdPdf(_pages);
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PdfViewScreen(
+          pdfPath: pathToPdf,
+          pages: _pages,
+        ),
+      ),
+    );
   }
 
   void _deleteSelected() async {
@@ -76,7 +93,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () =>Navigator.pop(context, _pages),
+            onPressed: () => _pdfPart(),
             child: const Text(
               'Done',
               style: TextStyle(
