@@ -42,7 +42,6 @@ dependencies:
   share_plus: ^13.3.0
   printing: ^5.14.3
   image: ^4.10.1
-  flutter_doc_scanner: ^0.0.21
 
 dev_dependencies:
   flutter_test:
