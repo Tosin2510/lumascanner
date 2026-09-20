@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:lumascanner/crop_screen.dart';
 import 'package:lumascanner/pdf_view_screen.dart';
 import 'package:lumascanner/services/pdf_service.dart';
 
@@ -46,6 +47,19 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _cropPart(int index) async {
+    final val = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CropScreen(pathToImage: _pages[index].path),
+      )
+    );
+
+    if (val != null) {
+      debugPrint('Crop result: $val');
+    }
   }
 
   void _deleteSelected() async {
@@ -108,17 +122,30 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
       body: Column(
         children: [
           Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: _pages.length,
-              onPageChanged: (index) => setState(() => _currentIndex = index),
-              itemBuilder: (context, index) => InteractiveViewer(
-                child: Image.file(
-                  File(_pages[index].path),
-                  fit: BoxFit.contain,
-                )
-              )
-            )
+            child: Stack(
+              children: [
+                PageView.builder(         
+                  controller: _pageController,
+                  itemCount: _pages.length,
+                  onPageChanged: (index) => setState(() => _currentIndex = index),
+                  itemBuilder: (context, index) => InteractiveViewer(
+                    child: Image.file(
+                      File(_pages[index].path),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: FloatingActionButton.small(
+                    backgroundColor: Colors.black,
+                    onPressed: () => _cropPart(_currentIndex),
+                    child: const Icon(Icons.crop, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
           ),
           if (showThumbnail)... [
             Padding(
