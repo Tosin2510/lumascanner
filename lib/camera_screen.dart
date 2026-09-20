@@ -365,7 +365,7 @@ double _avgLuminance(CameraImage image) {
         ),
         const SizedBox(height: 4,),
         Text(
-          'Review',
+          'Preview',
           style: TextStyle(
             color: hasPages ? Colors.blueAccent: Colors.white38,
             fontSize: 9,
