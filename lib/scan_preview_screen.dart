@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:lumascanner/crop_screen.dart';
 import 'package:lumascanner/pdf_view_screen.dart';
+import 'package:lumascanner/perspective_transform_service.dart';
 import 'package:lumascanner/services/pdf_service.dart';
 
 class ScanPreviewScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
   int _currentIndex = 0;
   late PageController _pageController;
   late List<XFile> _pages;
+  final _perspectiveTransform = PerspectiveTransformService();
 
   @override
   void initState() {
@@ -58,7 +60,17 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
     );
 
     if (val != null) {
-      debugPrint('Crop result: $val');
+      final transformedImagePath = await _perspectiveTransform.transformImage(
+        imagePath: val['imagePath'],
+        topLeft: val['topLeft'],
+        topRight: val['topRight'],
+        bottomLeft: val['bottomLeft'],
+        bottomRight: val['bottomRight'],
+        sizeOfBox: val['sizeOfBox'],
+      );
+      setState(() {
+        _pages[index] = XFile(transformedImagePath);
+      });
     }
   }
 
