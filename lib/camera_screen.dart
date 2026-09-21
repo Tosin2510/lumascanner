@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:lumascanner/services/image_picker_service.dart';
@@ -61,6 +60,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive) {
       _cameraService.dispose();
+      setState(() {
+        _isReady = false;
+      });
     } else if (state == AppLifecycleState.resumed) {
       _init();
     }
