@@ -20,18 +20,18 @@ class PdfViewScreen extends StatefulWidget {
 }
 
 class _PdfViewScreenState extends State<PdfViewScreen> {
-  final ExportService _exportService = ExportService();
-  late String _currentpdfPath;
-  late String _currentpdfName;
+  final ExportService exportService = ExportService();
+  late String currentpdfPath;
+  late String currentpdfName;
 
   @override
   void initState() {
     super.initState();
-    _currentpdfPath = widget.pdfPath;
-    _currentpdfName = path.basenameWithoutExtension(_currentpdfPath);
+    currentpdfPath = widget.pdfPath;
+    currentpdfName = path.basenameWithoutExtension(currentpdfPath);
   }
 
-  Future<void> _addExtraPages() async {
+  Future<void> addExtraPages() async {
     final decision = await showModalBottomSheet(
       context: context, 
       builder: (context) => SafeArea(
@@ -58,7 +58,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       final imagePicker = ImagePicker();
       final additionalImages = await imagePicker.pickMultiImage();
       if (additionalImages.isNotEmpty) {
-        _editPages(extraPages: additionalImages);
+        editPages(extraPages: additionalImages);
       }
     } else if (decision == 'camera') {
       final value = await Navigator.push<List<XFile>>(
@@ -68,18 +68,18 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         )
       );
       if (value != null && value.isNotEmpty) {
-        _editPages(extraPages: value);
+        editPages(extraPages: value);
       }
     }
   }
 
-  void _editPages({List<XFile>? extraPages}) {
+  void editPages({List<XFile>? extraPages}) {
     final completePages = [...widget.pages, ...?extraPages];
     Navigator.pop(context, completePages);
   }
 
-  Future<void> _renameDocument() async {
-    final TextEditingController controller = TextEditingController(text: _currentpdfName);
+  Future<void> renameDocument() async {
+    final TextEditingController controller = TextEditingController(text: currentpdfName);
     final newName = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -106,13 +106,13 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       }
     );
     if (newName != null && newName.isNotEmpty) {
-      final directory = path.dirname(_currentpdfPath);
+      final directory = path.dirname(currentpdfPath);
       final newPath = path.join(directory, "$newName.pdf");
-      final renamedFile = await File(_currentpdfPath).rename(newPath);
+      final renamedFile = await File(currentpdfPath).rename(newPath);
 
       setState(() {
-        _currentpdfPath = renamedFile.path;
-        _currentpdfName = newName;
+        currentpdfPath = renamedFile.path;
+        currentpdfName = newName;
       });
     }
   }
@@ -125,12 +125,12 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: InkWell(
-          onTap: _renameDocument,
+          onTap: renameDocument,
           child: Row(
             children: [
               Flexible(
                 child: Text(
-                  _currentpdfName,
+                  currentpdfName,
                   overflow: TextOverflow.ellipsis,
                 )
               ),
@@ -141,18 +141,18 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         ),
       ),
       body: PdfPreview(
-        key: ValueKey(_currentpdfPath),
-        build: (format) => File(_currentpdfPath).readAsBytes(),
+        key: ValueKey(currentpdfPath),
+        build: (format) => File(currentpdfPath).readAsBytes(),
         useActions: false,
         scrollViewDecoration: const BoxDecoration(color: Colors.black),
         previewPageMargin: EdgeInsets.zero,
-        pdfPreviewPageDecoration: const BoxDecoration(),
         padding: EdgeInsets.zero,
         canChangePageFormat: false,
         canChangeOrientation: false,
         loadingWidget: const Center(child: CircularProgressIndicator(color: Colors.white)),
         allowPrinting: true,
         allowSharing: false,
+        pdfPreviewPageDecoration: const BoxDecoration(),
       ),
       bottomNavigationBar: BottomAppBar(
         child: Row(
@@ -161,17 +161,17 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
             IconButton(
               icon: const Icon(Icons.share),
               tooltip: 'Share',
-              onPressed: () => _exportService.shareDocument(_currentpdfPath),
+              onPressed: () => exportService.shareDocument(currentpdfPath),
             ),
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
               tooltip: 'Add Page',
-              onPressed: () => _addExtraPages(),
+              onPressed: () => addExtraPages(),
             ),
             IconButton(
               icon: const Icon(Icons.edit_note),
               tooltip: 'Edit',
-              onPressed: () => _editPages(),
+              onPressed: () => editPages(),
             ),
           ]
         )

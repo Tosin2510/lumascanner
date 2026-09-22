@@ -10,7 +10,7 @@ Future<void> main() async {
     // Checks for available cameras, i only need the back camera in this case.
     cameras = await availableCameras();
   } on CameraException catch (e){
-    _logError(e.code, e.description);
+    logError(e.code, e.description);
   }
   runApp(const MyApp());
 }
@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
 }
 
 // This functions is used to log the errors that are related to the camera.
-void _logError(String code, String? message) {
+void logError(String code, String? message) {
   debugPrint('Error: $code${message == null ? '' : '\nError Message: $message'}');
 }
 

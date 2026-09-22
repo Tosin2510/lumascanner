@@ -18,44 +18,44 @@ class ScanPreviewScreen extends StatefulWidget {
 }
 
 class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
-  final _pdfService = PdfService();
-  int _currentIndex = 0;
-  late PageController _pageController;
-  late List<XFile> _pages;
+  final pdfService = PdfService();
+  int currentIndex = 0;
+  late PageController pageController;
+  late List<XFile> pages;
   final _perspectiveTransform = PerspectiveTransformService();
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-    _pages = List.from(widget.images);
+    pageController = PageController();
+    pages = List.from(widget.images);
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    pageController.dispose();
     super.dispose();
   }
 
-  Future<void> _pdfPart() async {
-    final pathToPdf = await _pdfService.createdPdf(_pages);
+  Future<void> pdfPart() async {
+    final pathToPdf = await pdfService.createdPdf(pages);
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => PdfViewScreen(
           pdfPath: pathToPdf,
-          pages: _pages,
+          pages: pages,
         ),
       ),
     );
   }
 
-  Future<void> _cropPart(int index) async {
+  Future<void> cropPart(int index) async {
     final val = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
-        builder: (context) => CropScreen(pathToImage: _pages[index].path),
+        builder: (context) => CropScreen(pathToImage: pages[index].path),
       )
     );
 
@@ -69,45 +69,45 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         sizeOfBox: val['sizeOfBox'],
       );
       setState(() {
-        _pages[index] = XFile(transformedImagePath);
+          pages[index] = XFile(transformedImagePath);
       });
     }
   }
 
-  void _deleteSelected() async {
+  void deleteSelected() async {
     setState(() {
-      _pages.removeAt(_currentIndex);
-      if (_currentIndex >= _pages.length) {
-        _currentIndex = _pages.length - 1;
+      pages.removeAt(currentIndex);
+      if (currentIndex >= pages.length) {
+        currentIndex = pages.length - 1;
       }
-      if (_pages.isNotEmpty) {
-        _pageController.jumpToPage(_currentIndex);
+      if (pages.isNotEmpty) {
+        pageController.jumpToPage(currentIndex);
       }
     });
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
+  void onReorder(int oldIndex, int newIndex) {
     setState(() {
       if (newIndex > oldIndex) {
         newIndex -= 1;
       }
-      final move = _pages.removeAt(oldIndex); 
-      _pages.insert(newIndex, move);
-      _currentIndex = newIndex;
-      _pageController.jumpToPage(_currentIndex);
+      final move = pages.removeAt(oldIndex); 
+      pages.insert(newIndex, move);
+      currentIndex = newIndex;
+      pageController.jumpToPage(currentIndex);
     });
   }
 
-  void _selectPage(int index) {
+  void selectPage(int index) {
     setState((){
-      _currentIndex = index;
-      _pageController.jumpToPage(_currentIndex);
+      currentIndex = index;
+      pageController.jumpToPage(currentIndex);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final showThumbnail = _pages.length > 1;
+    final showThumbnail = pages.length > 1;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -119,7 +119,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => _pdfPart(),
+            onPressed: () => pdfPart(),
             child: const Text(
               'Done',
               style: TextStyle(
@@ -137,12 +137,12 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
             child: Stack(
               children: [
                 PageView.builder(         
-                  controller: _pageController,
-                  itemCount: _pages.length,
-                  onPageChanged: (index) => setState(() => _currentIndex = index),
+                  controller: pageController,
+                  itemCount: pages.length,
+                  onPageChanged: (index) => setState(() => currentIndex = index),
                   itemBuilder: (context, index) => InteractiveViewer(
                     child: Image.file(
-                      File(_pages[index].path),
+                      File(pages[index].path),
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -152,7 +152,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
                   right: 16,
                   child: FloatingActionButton.small(
                     backgroundColor: Colors.black,
-                    onPressed: () => _cropPart(_currentIndex),
+                    onPressed: () => cropPart(currentIndex),
                     child: const Icon(Icons.crop, color: Colors.white),
                   ),
                 ),
@@ -163,7 +163,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'Page ${_currentIndex + 1} of ${_pages.length}',
+                'Page ${currentIndex + 1} of ${pages.length}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -176,15 +176,15 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
               child: ReorderableListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                onReorder: _onReorder,
-                itemCount: _pages.length, 
+                onReorder: onReorder,
+                itemCount: pages.length, 
                 itemBuilder: (context, index) {
-                  final isPicked = index == _currentIndex;
+                  final isPicked = index == currentIndex;
                   return Padding(
-                    key: ValueKey(_pages[index].path),
+                    key: ValueKey(pages[index].path),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: GestureDetector(
-                      onTap: () => _selectPage(index),
+                      onTap: () => selectPage(index),
                       child: Stack(
                         children: [
                           Container(
@@ -203,13 +203,13 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
                                 fit: StackFit.expand,
                                 children: [
                                   Image.file(
-                                    File(_pages[index].path),
+                                    File(pages[index].path),
                                     fit: BoxFit.cover,
                                   ),
                                   if (isPicked)
                                   Positioned.fill(
                                     child: GestureDetector(
-                                      onTap: _deleteSelected,
+                                      onTap: deleteSelected,
                                       child: Container(
                                         color: Colors.black.withValues(alpha: 0.5),
                                         child: const Icon(Icons.delete, color: Colors.white54, size: 23)

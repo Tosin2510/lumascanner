@@ -14,14 +14,14 @@ class CameraScreen extends StatefulWidget{
 }
 
 class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver{
-  final List<XFile> _captured = [];
-  final ImagePickerService _imagePickerService = ImagePickerService();
-  final _cameraService = CameraService();
-  bool _isReady = false;
-  bool _permissionDenied = false;
-  bool _isFlashOn = false;
-  bool _suggestLowLight = false;
-  DateTime _luminanceCheck = DateTime.now();
+  final List<XFile> captured = [];
+  final ImagePickerService imagePickerService = ImagePickerService();
+  final cameraService = CameraService();
+  bool isReady = false;
+  bool permissionDenied = false;
+  bool isFlashOn = false;
+  bool suggestLowLight = false;
+  DateTime luminanceCheck = DateTime.now();
 
   @override
   void initState() {
@@ -32,17 +32,17 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 
   Future<void> _init() async {
     try {
-      await _cameraService.initializeCamera();
+      await cameraService.initializeCamera();
       if (mounted) {
         setState((){
-          _isReady = true;
+          isReady = true;
         });
-       _startMonitoring();
+       startMonitoring();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _permissionDenied = true;
+          permissionDenied = true;
         });
       }
     }
@@ -51,24 +51,24 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _cameraService.controller?.stopImageStream();
-    _cameraService.dispose();
+    cameraService.controller?.stopImageStream();
+    cameraService.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive) {
-      _cameraService.dispose();
+      cameraService.dispose();
       setState(() {
-        _isReady = false;
+        isReady = false;
       });
     } else if (state == AppLifecycleState.resumed) {
       _init();
     }
   }
 
-  Widget _circleIconButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget circleIconButton({required IconData icon, required VoidCallback onPressed}) {
     return Container(
       width: 34,
       height: 34,
@@ -84,21 +84,21 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     );
   }
 
-  void _startMonitoring() {
-  _cameraService.controller!.startImageStream((CameraImage image) {
-    if (DateTime.now().difference(_luminanceCheck) < const Duration(seconds: 1)) return;
-    _luminanceCheck = DateTime.now();
+  void startMonitoring() {
+    cameraService.controller!.startImageStream((CameraImage image) {
+    if (DateTime.now().difference(luminanceCheck) < const Duration(seconds: 1)) return;
+    luminanceCheck = DateTime.now();
 
-    final brightness = _avgLuminance(image);
+    final brightness = avgLuminance(image);
 
     final isDark = brightness < 60; 
-    if (isDark != _suggestLowLight && mounted) {
-      setState(() => _suggestLowLight = isDark && !_isFlashOn);
+    if (isDark != suggestLowLight && mounted) {
+      setState(() => suggestLowLight = isDark && !isFlashOn);
     }
   });
 }
 
-double _avgLuminance(CameraImage image) {
+double avgLuminance(CameraImage image) {
   final yPlane = image.planes[0].bytes;
   int totalVal = 0;
   for (int i = 0; i < yPlane.length; i += 10) {
@@ -108,66 +108,66 @@ double _avgLuminance(CameraImage image) {
 }
 
 
-  Future<void> _onCapture() async {
+  Future<void> onCapture() async {
     try {
-      final imagePath = await _cameraService.capturePhoto();
+      final imagePath = await cameraService.capturePhoto();
       setState(() {
-        _captured.add(XFile(imagePath));
+        captured.add(XFile(imagePath));
       });
     } catch (e) {
       debugPrint('Error capturing image: $e');
     }
   }
 
-  Future<void> _controlFlash() async {
-  if (_cameraService.controller == null || !_cameraService.controller!.value.isInitialized) {
+  Future<void> controlFlash() async {
+  if (cameraService.controller == null || !cameraService.controller!.value.isInitialized) {
     return;
   }
 
   try {
-    final flashState = _isFlashOn ? FlashMode.off : FlashMode.torch;
-    await _cameraService.setFlashLight(flashState);
+    final flashState = isFlashOn ? FlashMode.off : FlashMode.torch;
+    await cameraService.setFlashLight(flashState);
 
     if (mounted) {
-      setState(() => _isFlashOn = !_isFlashOn);
+      setState(() => isFlashOn = !isFlashOn);
     }
   } catch (e) {
     debugPrint('Flash toggle failed: $e');
   }
 }
 
-  Future<void> _pickImagesFromGallery() async {
-    final picked = await _imagePickerService.pickMultipleImageFromGallery();
+  Future<void> pickImagesFromGallery() async {
+    final picked = await imagePickerService.pickMultipleImageFromGallery();
     if (picked.isNotEmpty && mounted) {
       setState(() {
-        _captured.addAll(picked);
+        captured.addAll(picked);
       });
     }
   }
 
-  void _openPreviewPages() {
+  void openPreviewPages() {
     if (widget.returnPreviewPages) {
-      Navigator.pop(context, _captured);
+      Navigator.pop(context, captured);
       
     } else {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ScanPreviewScreen(images: _captured),
+          builder: (context) => ScanPreviewScreen(images: captured),
         )
       );
     }
   }
   @override
   Widget build(BuildContext context) {
-    if (_permissionDenied) {
+    if (permissionDenied) {
       return const Scaffold(
         body: Center(
           child: Text('Camera permission denied or unavailable.')
         )
       );
     }
-    if (!_isReady) {
+    if (!isReady) {
       return Scaffold(
         body: Center(
           child: CircularProgressIndicator()
@@ -181,9 +181,9 @@ double _avgLuminance(CameraImage image) {
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: _cameraService.controller!.value.previewSize!.height,
-                height: _cameraService.controller!.value.previewSize!.width,
-                child: CameraPreview(_cameraService.controller!),
+                width: cameraService.controller!.value.previewSize!.height,
+                height: cameraService.controller!.value.previewSize!.width,
+                child: CameraPreview(cameraService.controller!),
               ),
             ),
           ),
@@ -195,13 +195,13 @@ double _avgLuminance(CameraImage image) {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _circleIconButton(
+                  circleIconButton(
                     icon: Icons.close,
                     onPressed: () => Navigator.pop(context),
                   ),
-                  _circleIconButton(
-                    icon: _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                    onPressed: _controlFlash,
+                    circleIconButton(
+                    icon: isFlashOn ? Icons.flash_on : Icons.flash_off,
+                    onPressed: controlFlash,
                   )
                 ],
               )
@@ -219,18 +219,18 @@ double _avgLuminance(CameraImage image) {
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(left: 24),
-                    child: _importButton(),
+                    child: importButton(),
                   ),
-                  _captureButton(),
+                  captureButton(),
                   Padding(
                     padding: const EdgeInsets.only(right: 20),
-                    child: _reviewButton(),
+                    child: reviewButton(),
                   )
                 ]
               ),
             ),
           ),
-          if (_suggestLowLight)
+          if (suggestLowLight)
           Positioned(
             top: 70,
             left: 0,
@@ -238,8 +238,8 @@ double _avgLuminance(CameraImage image) {
             child: Center(
               child: GestureDetector(
                 onTap: () {
-                  _controlFlash();
-                  setState(() => _suggestLowLight = false);
+                  controlFlash();
+                  setState(() => suggestLowLight = false);
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -264,7 +264,7 @@ double _avgLuminance(CameraImage image) {
     );
   }
 
-  Widget _importButton() {
+  Widget importButton() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -276,7 +276,7 @@ double _avgLuminance(CameraImage image) {
             border: Border.all(color: Colors.white, width: 1.5)
           ),
           child: IconButton(
-            onPressed: _pickImagesFromGallery, 
+            onPressed: pickImagesFromGallery, 
             icon: const Icon(
               Icons.photo_library_outlined,
               color: Colors.white,
@@ -290,9 +290,9 @@ double _avgLuminance(CameraImage image) {
     );
   }
 
-  Widget _captureButton() {
+  Widget captureButton() {
     return GestureDetector(
-      onTap: _onCapture,
+      onTap: onCapture,
       child: Container(
         width: 70,
         height: 70,
@@ -317,13 +317,13 @@ double _avgLuminance(CameraImage image) {
     );
   }
 
-  Widget _reviewButton() {
-    final hasPages = _captured.isNotEmpty;
+  Widget reviewButton() {
+    final hasPages = captured.isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         GestureDetector(
-          onTap: hasPages ? _openPreviewPages : null,
+          onTap: hasPages ? openPreviewPages : null,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -334,7 +334,7 @@ double _avgLuminance(CameraImage image) {
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.grey.shade800,
                   image: hasPages ? DecorationImage(
-                    image: FileImage(File(_captured.last.path)),
+                    image: FileImage(File(captured.last.path)),
                     fit: BoxFit.cover,
                   )
                   : null
@@ -356,7 +356,7 @@ double _avgLuminance(CameraImage image) {
                     ),
                     child: Center(
                       child: Text(
-                      '${_captured.length}',
+                      '${captured.length}',
                       style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                     ),
                     )

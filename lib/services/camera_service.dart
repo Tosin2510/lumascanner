@@ -6,16 +6,16 @@ import 'package:path/path.dart' as path;
 
 class CameraService{
   // Class variables
-  CameraController? _cameraController;
+  CameraController? cameraController;
   List<CameraDescription> _cameras = [];
   List<CameraDescription> get cameras => _cameras;
 
 // Check if the camera controller is null or uninitialized, and throw an exception or else, the controller is returned.
   CameraController? get controller {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+    if (cameraController == null || !cameraController!.value.isInitialized) {
       throw Exception('Camera is not initialized');
     }
-    return _cameraController!;
+    return cameraController!;
   }
 
 // Initialize the devicee camera and make the controllser the back camera
@@ -27,13 +27,13 @@ class CameraService{
       orElse: () => _cameras.first
     );
 
-    _cameraController = CameraController(
+    cameraController = CameraController(
       backCamera,
       ResolutionPreset.high,
       enableAudio: false
     );
 
-    return _cameraController!.initialize();
+    return cameraController!.initialize();
   }
 
   Future<void> setFlashLight(FlashMode flash) async {
@@ -56,7 +56,7 @@ class CameraService{
   }
 
   Future<void> dispose() async {
-    await _cameraController?.dispose();
-    _cameraController = null;
+    await cameraController?.dispose();
+    cameraController = null;
   }
 }
