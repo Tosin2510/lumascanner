@@ -5,12 +5,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class CameraService{
-  // Class variables
   CameraController? cameraController;
   List<CameraDescription> _cameras = [];
-  List<CameraDescription> get cameras => _cameras;
+  List<CameraDescription> get cameras => _cameras; // Added this getter for the list of accessible cameras on a device.
 
-// Check if the camera controller is null or uninitialized, and throw an exception or else, the controller is returned.
   CameraController? get controller {
     if (cameraController == null || !cameraController!.value.isInitialized) {
       throw Exception('Camera is not initialized');
@@ -18,8 +16,7 @@ class CameraService{
     return cameraController!;
   }
 
-// Initialize the devicee camera and make the controllser the back camera
-// If the back camera is not available, then use the first camera.
+// If the back camera is not available, then the first camera available should be used.
   Future<void> initializeCamera() async {
     _cameras = await availableCameras();
     final backCamera = _cameras.firstWhere(

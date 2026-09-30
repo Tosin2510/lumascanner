@@ -12,16 +12,19 @@ class CropScreen extends StatefulWidget {
   @override
   State<CropScreen> createState() => _CropScreenState();
 }
+
 class _CropScreenState extends State<CropScreen> {
   Offset? topLeft;
   Offset? topRight;
   Offset? bottomLeft;
   Offset? bottomRight;
-  Size? _sizeOfBox;
-  Size? _pixelOfImage;
-  Offset _startingPointOfImageInBox = Offset.zero;
+  Size? sizeOfBox;
+  Size? pixelOfImage;
+  Offset startingPointOfImageInBox = Offset.zero;
+  bool isCropping = false;
+  Offset? currentDragPosition;
 
-  Rect _calculateActualImageRectangle(Size sizeOfBox, Size imageSize) {
+  Rect calculateActualImageRectangle(Size sizeOfBox, Size imageSize) {
     final boxAspectRatio = sizeOfBox.width / sizeOfBox.height;
     final imageAspectRatio = imageSize.width / imageSize.height;
 
@@ -43,36 +46,36 @@ class _CropScreenState extends State<CropScreen> {
   }
 
 
-// I am adding this functions for the crop screen midpoints.
+// I am adding this functions to calculate the crop screen midpoints.
 
-  Offset? get _topMiddlePart => (topLeft != null && topRight != null)
+  Offset? get topMiddlePart => (topLeft != null && topRight != null)
     ? Offset((topLeft!.dx + topRight!.dx) / 2, (topLeft!.dy + topRight!.dy) / 2)
     : null;
-  Offset? get _leftMiddlePart => (topLeft != null && bottomLeft != null)
+  Offset? get leftMiddlePart => (topLeft != null && bottomLeft != null)
     ? Offset((topLeft!.dx + bottomLeft!.dx) / 2, (topLeft!.dy + bottomLeft!.dy) / 2)
     : null;
-  Offset? get _rightMiddlePart => (topRight != null && bottomRight != null)
+  Offset? get rightMiddlePart => (topRight != null && bottomRight != null)
     ? Offset((topRight!.dx + bottomRight!.dx) / 2, (topRight!.dy + bottomRight!.dy) / 2)
     : null;
-  Offset? get _bottomMiddlePart => (bottomLeft != null && bottomRight != null)
+  Offset? get bottomMiddlePart => (bottomLeft != null && bottomRight != null)
     ? Offset((bottomLeft!.dx + bottomRight!.dx) / 2, (bottomLeft!.dy + bottomRight!.dy) / 2)
     : null;
 
-  Future<void> _getSizeOfImage() async {
+  Future<void> getSizeOfImage() async {
   final imageBytes = await File(widget.pathToImage).readAsBytes();
-  final decoded = image.decodeImage(imageBytes)!;
+  final decodedImage = image.decodeImage(imageBytes)!;
   setState(() {
-    _pixelOfImage = Size(decoded.width.toDouble(), decoded.height.toDouble());
+    pixelOfImage = Size(decodedImage.width.toDouble(), decodedImage.height.toDouble());
   });
 }
 
-  void _corners(Size boxSize) {
+  void corners(Size boxSize) {
     if (topLeft != null)  return;
-    final actualImageRectangle = _calculateActualImageRectangle(boxSize, _pixelOfImage!);
+    final actualImageRectangle = calculateActualImageRectangle(boxSize, pixelOfImage!);
     const space = 24.0;
       setState(() {
-        _sizeOfBox = actualImageRectangle.size;
-        _startingPointOfImageInBox = actualImageRectangle.topLeft;
+        sizeOfBox = actualImageRectangle.size;
+        startingPointOfImageInBox = actualImageRectangle.topLeft;
         topLeft = Offset(actualImageRectangle.left + space, actualImageRectangle.top + space);
         topRight = Offset(actualImageRectangle.right - space, actualImageRectangle.top + space);
         bottomLeft = Offset(actualImageRectangle.left + space, actualImageRectangle.bottom - space);
@@ -80,14 +83,14 @@ class _CropScreenState extends State<CropScreen> {
       });
     }
 
-  void _doCropping() {
+  void doCropping() {
     if (topLeft != null && topRight != null && bottomLeft != null && bottomRight != null) {
       Navigator.pop(context, {
-        'topLeft': topLeft! - _startingPointOfImageInBox,
-        'topRight': topRight! - _startingPointOfImageInBox,
-        'bottomLeft': bottomLeft! - _startingPointOfImageInBox,
-        'bottomRight': bottomRight! - _startingPointOfImageInBox,
-        'sizeOfBox': _sizeOfBox,
+        'topLeft': topLeft! - startingPointOfImageInBox,
+        'topRight': topRight! - startingPointOfImageInBox,
+        'bottomLeft': bottomLeft! - startingPointOfImageInBox,
+        'bottomRight': bottomRight! - startingPointOfImageInBox,
+        'sizeOfBox': sizeOfBox,
         'imagePath': widget.pathToImage,
       });
     }
@@ -96,12 +99,12 @@ class _CropScreenState extends State<CropScreen> {
   @override
   void initState() {
     super.initState();
-    _getSizeOfImage();
+    getSizeOfImage();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_pixelOfImage == null) {
+    if (pixelOfImage == null) {
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(),
@@ -119,7 +122,7 @@ class _CropScreenState extends State<CropScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: _doCropping,
+            onPressed: doCropping,
             child: const Text(
               'Done',
               style: TextStyle(
@@ -132,7 +135,7 @@ class _CropScreenState extends State<CropScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
-          WidgetsBinding.instance.addPostFrameCallback((_) => _corners(size));
+          WidgetsBinding.instance.addPostFrameCallback((_) => corners(size));
           return Stack(
             children: [
               Positioned.fill(
@@ -147,14 +150,17 @@ class _CropScreenState extends State<CropScreen> {
                     painter: CornerPart(topL: topLeft!, topR: topRight!, bottomL: bottomLeft!, bottomR: bottomRight!)
                   )
                 ),
-                _buildDraggableCorner('topLeft', topLeft),
-                _buildDraggableCorner('topRight', topRight),
-                _buildDraggableCorner('bottomLeft', bottomLeft),
-                _buildDraggableCorner('bottomRight', bottomRight),
-                _buildDraggableMidPoints('top', _topMiddlePart),
-                _buildDraggableMidPoints('left', _leftMiddlePart),
-                _buildDraggableMidPoints('right', _rightMiddlePart),
-                _buildDraggableMidPoints('bottom', _bottomMiddlePart)
+                buildDraggableCorner('topLeft', topLeft),
+                buildDraggableCorner('topRight', topRight),
+                buildDraggableCorner('bottomLeft', bottomLeft),
+                buildDraggableCorner('bottomRight', bottomRight),
+                buildDraggableMidPoints('top', topMiddlePart),
+                buildDraggableMidPoints('left', leftMiddlePart),
+                buildDraggableMidPoints('right', rightMiddlePart),
+                buildDraggableMidPoints('bottom', bottomMiddlePart),
+
+                if (isCropping && currentDragPosition != null) 
+                  buildMagnifyingGlass(currentDragPosition!, size)
               ]
             ]
          );
@@ -163,13 +169,21 @@ class _CropScreenState extends State<CropScreen> {
    );
   }
 
-  Widget _buildDraggableCorner(String corner, Offset? position) {
+  Widget buildDraggableCorner(String corner, Offset? position) {
     if (position == null) return const SizedBox.shrink();
     return Positioned(
       left: position.dx - 15,
       top: position.dy - 15,
       child: GestureDetector(
-        onPanUpdate:(details) => _midPointParts(corner, details.delta),
+        onPanStart: (_) {
+          setState(() {
+            isCropping = true;
+          });
+        },
+        onPanUpdate:(details) { midPointParts(corner, details.delta);
+        setState(() => currentDragPosition = trackDragCorner(corner));
+        },
+      onPanEnd: (_) => setState(() => isCropping = false),
         child: Container(
           width: 30,
           height: 30,
@@ -183,67 +197,79 @@ class _CropScreenState extends State<CropScreen> {
     );
   }
 
-  Offset _hold(Offset position) {
-    if (_sizeOfBox == null) return position;
-    final minvalX = _startingPointOfImageInBox.dx;
-    final minvalY = _startingPointOfImageInBox.dy;
-    final maxvalX = _startingPointOfImageInBox.dx + _sizeOfBox!.width;
-    final maxvalY = _startingPointOfImageInBox.dy + _sizeOfBox!.height;
+  Offset? trackDragCorner(String corner) {
+    switch (corner) {
+      case 'topLeft': return topLeft;
+      case 'topRight': return topRight;
+      case 'bottomLeft': return bottomLeft;
+      case 'bottomRight': return bottomRight;
+      default: return null;
+    }
+  }
+  Offset hold(Offset position) {
+    if (sizeOfBox == null) return position;
+    final minvalX = startingPointOfImageInBox.dx;
+    final minvalY = startingPointOfImageInBox.dy;
+    final maxvalX = startingPointOfImageInBox.dx + sizeOfBox!.width;
+    final maxvalY = startingPointOfImageInBox.dy + sizeOfBox!.height;
     return Offset(
       position.dx.clamp(minvalX, maxvalX),
       position.dy.clamp(minvalY, maxvalY)
     );
   }
 
-  void _midPointParts(String corner, Offset delta) {
+  void midPointParts(String corner, Offset delta) {
   setState(() {
     switch (corner) {
       case 'topLeft':
-        topLeft = _hold(topLeft! + delta);
+        topLeft = hold(topLeft! + delta);
         break;
       case 'topRight':
-        topRight = _hold(topRight! + delta);
+        topRight = hold(topRight! + delta);
         break;
       case 'bottomLeft':
-        bottomLeft = _hold(bottomLeft! + delta);
+        bottomLeft = hold(bottomLeft! + delta);
         break;
       case 'bottomRight':
-        bottomRight = _hold(bottomRight! + delta);
+        bottomRight = hold(bottomRight! + delta);
         break;
     }
   });
 }
 
-void _cornerParts(String edge, Offset delta) {
+void cornerParts(String edge, Offset delta) {
   setState(() {
     switch (edge) {
       case 'top':
-        topLeft = _hold(topLeft! + delta);
-        topRight = _hold(topRight! + delta);
+        topLeft = hold(topLeft! + delta);
+        topRight = hold(topRight! + delta);
         break;
       case 'bottom':
-        bottomLeft = _hold(bottomLeft! + delta);
-        bottomRight = _hold(bottomRight! + delta);
+        bottomLeft = hold(bottomLeft! + delta);
+        bottomRight = hold(bottomRight! + delta);
         break;
       case 'left':
-        topLeft = _hold(topLeft! + delta);
-        bottomLeft = _hold(bottomLeft! + delta);
+        topLeft = hold(topLeft! + delta);
+        bottomLeft = hold(bottomLeft! + delta);
         break;
       case 'right':
-        topRight = _hold(topRight! + delta);
-        bottomRight = _hold(bottomRight! + delta);
+        topRight = hold(topRight! + delta);
+        bottomRight = hold(bottomRight! + delta);
         break;
     }
   });
 }
 
-  Widget _buildDraggableMidPoints(String edge, Offset? position) {
+  Widget buildDraggableMidPoints(String edge, Offset? position) {
     if (position == null) return const SizedBox.shrink();
     return Positioned(
       left: position.dx - 12,
       top: position.dy - 12,
       child: GestureDetector(
-        onPanUpdate: (details) => _cornerParts(edge, details.delta),
+        onPanStart: (_) => setState(() => isCropping = true),
+        onPanUpdate: (details) {cornerParts(edge, details.delta);
+        setState(() => currentDragPosition = position + details.delta);
+      },
         child: Container(
           width: 24,
           height: 24,
@@ -256,4 +282,57 @@ void _cornerParts(String edge, Offset delta) {
       ),
       );
   }
+
+  Widget buildMagnifyingGlass(Offset position, Size sizeOfBox) {
+  const magnifyingGlassSize = 100.0;
+  const zoomExtent = 2.5;
+
+  // Convert from full-box coordinates to image-relative coordinates
+  final localPosition = position - startingPointOfImageInBox;
+
+  final translateX = (magnifyingGlassSize / 2) - (localPosition.dx * zoomExtent);
+  final translateY = (magnifyingGlassSize / 2) - (localPosition.dy * zoomExtent);
+
+  final showAbove = position.dy - magnifyingGlassSize - 30 > 0;
+  final top = showAbove ? position.dy - magnifyingGlassSize - 30 : position.dy + 30;
+  final left = (position.dx - magnifyingGlassSize / 2).clamp(0.0, /* full box width */ double.infinity);
+
+  return Positioned(
+    left: left,
+    top: top,
+    child: IgnorePointer(
+      child: Container(
+        width: magnifyingGlassSize,
+        height: magnifyingGlassSize,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 8)],
+        ),
+        child: ClipOval(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              OverflowBox(
+                maxWidth: sizeOfBox.width * zoomExtent,
+                maxHeight: sizeOfBox.height * zoomExtent,
+                child: Transform(
+                  transform: Matrix4.translationValues(translateX, translateY, 0.0),
+                  child: Image.file(
+                    File(widget.pathToImage),
+                    width: sizeOfBox.width * zoomExtent,
+                    height: sizeOfBox.height * zoomExtent,
+                    fit: BoxFit.fill, // fill, not contain — sizeOfBox already matches the image's real aspect ratio
+                  ),
+                ),
+              ),
+              Container(width: 1, height: 20, color: Colors.redAccent),
+              Container(width: 20, height: 1, color: Colors.redAccent),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
 }

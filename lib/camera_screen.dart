@@ -14,35 +14,35 @@ class CameraScreen extends StatefulWidget{
 }
 
 class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver{
-  final List<XFile> captured = [];
+  final List<XFile> capturedImages = [];
   final ImagePickerService imagePickerService = ImagePickerService();
   final cameraService = CameraService();
   bool isReady = false;
-  bool permissionDenied = false;
-  bool isFlashOn = false;
-  bool suggestLowLight = false;
+  bool cameraPermissionDenied = false;
+  bool isFlashLightOn = false;
+  bool suggestLowLightSituation = false;
   DateTime luminanceCheck = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _init();
+    init();
   }
 
-  Future<void> _init() async {
+  Future<void> init() async {
     try {
       await cameraService.initializeCamera();
       if (mounted) {
         setState((){
           isReady = true;
         });
-       startMonitoring();
+       startMonitoringBrightnessInSurrounding();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          permissionDenied = true;
+          cameraPermissionDenied = true;
         });
       }
     }
@@ -64,11 +64,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         isReady = false;
       });
     } else if (state == AppLifecycleState.resumed) {
-      _init();
+      init();
     }
   }
 
-  Widget circleIconButton({required IconData icon, required VoidCallback onPressed}) {
+  Widget reusableIconButton({required IconData icon, required VoidCallback onPressed}) {
     return Container(
       width: 34,
       height: 34,
@@ -84,21 +84,21 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     );
   }
 
-  void startMonitoring() {
+  void startMonitoringBrightnessInSurrounding() {
     cameraService.controller!.startImageStream((CameraImage image) {
     if (DateTime.now().difference(luminanceCheck) < const Duration(seconds: 1)) return;
     luminanceCheck = DateTime.now();
 
-    final brightness = avgLuminance(image);
+    final brightness = averageLuminance(image);
 
     final isDark = brightness < 60; 
-    if (isDark != suggestLowLight && mounted) {
-      setState(() => suggestLowLight = isDark && !isFlashOn);
+    if (isDark != suggestLowLightSituation && mounted) {
+      setState(() => suggestLowLightSituation = isDark && !isFlashLightOn);
     }
   });
 }
 
-double avgLuminance(CameraImage image) {
+double averageLuminance(CameraImage image) {
   final yPlane = image.planes[0].bytes;
   int totalVal = 0;
   for (int i = 0; i < yPlane.length; i += 10) {
@@ -108,28 +108,28 @@ double avgLuminance(CameraImage image) {
 }
 
 
-  Future<void> onCapture() async {
+  Future<void> onCaptureImage() async {
     try {
       final imagePath = await cameraService.capturePhoto();
       setState(() {
-        captured.add(XFile(imagePath));
+        capturedImages.add(XFile(imagePath));
       });
     } catch (e) {
       debugPrint('Error capturing image: $e');
     }
   }
 
-  Future<void> controlFlash() async {
+  Future<void> controlCameraFlash() async {
   if (cameraService.controller == null || !cameraService.controller!.value.isInitialized) {
     return;
   }
 
   try {
-    final flashState = isFlashOn ? FlashMode.off : FlashMode.torch;
+    final flashState = isFlashLightOn ? FlashMode.off : FlashMode.torch;
     await cameraService.setFlashLight(flashState);
 
     if (mounted) {
-      setState(() => isFlashOn = !isFlashOn);
+      setState(() => isFlashLightOn = !isFlashLightOn);
     }
   } catch (e) {
     debugPrint('Flash toggle failed: $e');
@@ -140,27 +140,27 @@ double avgLuminance(CameraImage image) {
     final picked = await imagePickerService.pickMultipleImageFromGallery();
     if (picked.isNotEmpty && mounted) {
       setState(() {
-        captured.addAll(picked);
+        capturedImages.addAll(picked);
       });
     }
   }
 
   void openPreviewPages() {
     if (widget.returnPreviewPages) {
-      Navigator.pop(context, captured);
+      Navigator.pop(context, capturedImages);
       
     } else {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ScanPreviewScreen(images: captured),
+          builder: (context) => ScanPreviewScreen(images: capturedImages),
         )
       );
     }
   }
   @override
   Widget build(BuildContext context) {
-    if (permissionDenied) {
+    if (cameraPermissionDenied) {
       return const Scaffold(
         body: Center(
           child: Text('Camera permission denied or unavailable.')
@@ -195,13 +195,13 @@ double avgLuminance(CameraImage image) {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  circleIconButton(
+                  reusableIconButton(
                     icon: Icons.close,
                     onPressed: () => Navigator.pop(context),
                   ),
-                    circleIconButton(
-                    icon: isFlashOn ? Icons.flash_on : Icons.flash_off,
-                    onPressed: controlFlash,
+                    reusableIconButton(
+                    icon: isFlashLightOn ? Icons.flash_on : Icons.flash_off,
+                    onPressed: controlCameraFlash,
                   )
                 ],
               )
@@ -230,7 +230,7 @@ double avgLuminance(CameraImage image) {
               ),
             ),
           ),
-          if (suggestLowLight)
+          if (suggestLowLightSituation)
           Positioned(
             top: 70,
             left: 0,
@@ -238,8 +238,8 @@ double avgLuminance(CameraImage image) {
             child: Center(
               child: GestureDetector(
                 onTap: () {
-                  controlFlash();
-                  setState(() => suggestLowLight = false);
+                  controlCameraFlash();
+                  setState(() => suggestLowLightSituation = false);
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -292,7 +292,7 @@ double avgLuminance(CameraImage image) {
 
   Widget captureButton() {
     return GestureDetector(
-      onTap: onCapture,
+      onTap: onCaptureImage,
       child: Container(
         width: 70,
         height: 70,
@@ -318,7 +318,7 @@ double avgLuminance(CameraImage image) {
   }
 
   Widget reviewButton() {
-    final hasPages = captured.isNotEmpty;
+    final hasPages = capturedImages.isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -334,7 +334,7 @@ double avgLuminance(CameraImage image) {
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.grey.shade800,
                   image: hasPages ? DecorationImage(
-                    image: FileImage(File(captured.last.path)),
+                    image: FileImage(File(capturedImages.last.path)),
                     fit: BoxFit.cover,
                   )
                   : null
@@ -356,7 +356,7 @@ double avgLuminance(CameraImage image) {
                     ),
                     child: Center(
                       child: Text(
-                      '${captured.length}',
+                      '${capturedImages.length}',
                       style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                     ),
                     )

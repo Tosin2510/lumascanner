@@ -11,31 +11,34 @@ class PdfService {
     final pdf = widg.Document();
     for (final singleImage in images) {
       final imageByte = await File(singleImage.path).readAsBytes();
-      final decode = img.decodeImage(imageByte)!;
-      final image = widg.MemoryImage(imageByte);
+      final decodeImage = img.decodeImage(imageByte)!;
+      final imageval = widg.MemoryImage(imageByte);
       final format = PdfPageFormat(
-        decode.width.toDouble(),
-        decode.height.toDouble(),
+        decodeImage.width.toDouble(),
+        decodeImage.height.toDouble(),
       );
+
       pdf.addPage(
         widg.Page(
           pageFormat: format,
           margin: widg.EdgeInsets.zero,
           build: (context) {
             return widg.Center(
-              child: widg.Image(image, fit: widg.BoxFit.contain)
+              child: widg.Image(imageval, fit: widg.BoxFit.contain)
             );
           }
         )
       );
     }
 
+// Added this to temporarily store the generated PDF in the app document directory.
     final appDir = await getApplicationDocumentsDirectory();
     final pdfDocsDir = Directory(path.join(appDir.path, 'Documents'));
+
     if (!await pdfDocsDir.exists()) {
       await pdfDocsDir.create(recursive: true);
     }
-    final name = 'document${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final name = 'pdfdocument${DateTime.now().millisecondsSinceEpoch}.pdf';
     final pdfPath = path.join(pdfDocsDir.path, name);
     await File(pdfPath).writeAsBytes(await pdf.save());
     return pdfPath;
