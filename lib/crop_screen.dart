@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:document_scan/document_scan.dart';
 import 'package:flutter/material.dart';
+import 'package:lumascanner/automatic_edge_detection.dart';
 import 'package:lumascanner/corner_part.dart';
 import 'package:image/image.dart' as image;
 
@@ -24,6 +26,9 @@ class _CropScreenState extends State<CropScreen> {
   bool isCropping = false;
   Offset? currentDragPosition;
 
+  final automaticEdgeDetection = AutomaticEdgeDetection();
+  DocumentCorners? detectedCorners;
+  
   Rect calculateActualImageRectangle(Size sizeOfBox, Size imageSize) {
     final boxAspectRatio = sizeOfBox.width / sizeOfBox.height;
     final imageAspectRatio = imageSize.width / imageSize.height;
@@ -64,27 +69,59 @@ class _CropScreenState extends State<CropScreen> {
   Future<void> getSizeOfImage() async {
   final imageBytes = await File(widget.pathToImage).readAsBytes();
   final decodedImage = image.decodeImage(imageBytes)!;
+
+// Added this to run the edge detection since the image pixel dimension is already available...
+  final corners = await automaticEdgeDetection.detectEdges(widget.pathToImage);
+  
   setState(() {
     pixelOfImage = Size(decodedImage.width.toDouble(), decodedImage.height.toDouble());
+    detectedCorners = corners;
   });
 }
+
+// The condition i added here either uses detection if it is available
+// Otherwise, it uses what i already have there.
 
   void corners(Size boxSize) {
     if (topLeft != null)  return;
     final actualImageRectangle = calculateActualImageRectangle(boxSize, pixelOfImage!);
-    const space = 24.0;
-      setState(() {
-        sizeOfBox = actualImageRectangle.size;
-        startingPointOfImageInBox = actualImageRectangle.topLeft;
-        topLeft = Offset(actualImageRectangle.left + space, actualImageRectangle.top + space);
-        topRight = Offset(actualImageRectangle.right - space, actualImageRectangle.top + space);
-        bottomLeft = Offset(actualImageRectangle.left + space, actualImageRectangle.bottom - space);
-        bottomRight = Offset(actualImageRectangle.right - space, actualImageRectangle.bottom - space);
-      });
-    }
+    sizeOfBox = actualImageRectangle.size;   
+    startingPointOfImageInBox = actualImageRectangle.topLeft;
 
-  void doCropping() {
-    if (topLeft != null && topRight != null && bottomLeft != null && bottomRight != null) {
+    if (detectedCorners != null) {
+      final pixCorners = detectedCorners!.toPixels(
+        pixelOfImage!.width.toInt(), 
+        pixelOfImage!.height.toInt(),
+      );
+
+      final xVal = actualImageRectangle.width/pixelOfImage!.width;
+      final yVal = actualImageRectangle.height/pixelOfImage!.height;
+
+      Offset convertToScreenCoordinates(Offset imagePoint) =>
+        Offset(
+          actualImageRectangle.left + imagePoint.dx * xVal,
+          actualImageRectangle.top + imagePoint.dy * yVal
+        );
+
+        setState(() {
+          topLeft = convertToScreenCoordinates(Offset(pixCorners[0].x, pixCorners[0].y));
+          topRight = convertToScreenCoordinates(Offset(pixCorners[1].x, pixCorners[1].y));
+          bottomRight = convertToScreenCoordinates(Offset(pixCorners[2].x, pixCorners[2].y));
+          bottomLeft = convertToScreenCoordinates(Offset(pixCorners[3].x, pixCorners[3].y));
+        });
+      } else {
+          const space = 24.0;
+            setState(() {
+              topLeft = Offset(actualImageRectangle.left + space, actualImageRectangle.top + space);
+              topRight = Offset(actualImageRectangle.right - space, actualImageRectangle.top + space);
+              bottomLeft = Offset(actualImageRectangle.left + space, actualImageRectangle.bottom - space);
+              bottomRight = Offset(actualImageRectangle.right - space, actualImageRectangle.bottom - space);
+            });
+          }
+        }
+
+        void doCropping() {
+          if (topLeft != null && topRight != null && bottomLeft != null && bottomRight != null) {
       Navigator.pop(context, {
         'topLeft': topLeft! - startingPointOfImageInBox,
         'topRight': topRight! - startingPointOfImageInBox,
@@ -283,19 +320,25 @@ void cornerParts(String edge, Offset delta) {
       );
   }
 
+ 
   Widget buildMagnifyingGlass(Offset position, Size sizeOfBox) {
-  const magnifyingGlassSize = 100.0;
-  const zoomExtent = 2.5;
+  const magnifyingGlassSize = 170.0;
+  const zoomExtent = 3.0;
+
+   Offset zoom(Offset corner) {
+    return (corner - startingPointOfImageInBox) * zoomExtent;
+  }
+
 
   // Convert from full-box coordinates to image-relative coordinates
   final localPosition = position - startingPointOfImageInBox;
 
-  final translateX = (magnifyingGlassSize / 2) - (localPosition.dx * zoomExtent);
-  final translateY = (magnifyingGlassSize / 2) - (localPosition.dy * zoomExtent);
+  final xVal = (magnifyingGlassSize / 2) - (localPosition.dx * zoomExtent);
+  final yVal = (magnifyingGlassSize / 2) - (localPosition.dy * zoomExtent);
 
   final showAbove = position.dy - magnifyingGlassSize - 30 > 0;
   final top = showAbove ? position.dy - magnifyingGlassSize - 30 : position.dy + 30;
-  final left = (position.dx - magnifyingGlassSize / 2).clamp(0.0, /* full box width */ double.infinity);
+  final left = (position.dx - magnifyingGlassSize / 2).clamp(0.0, double.infinity);
 
   return Positioned(
     left: left,
@@ -310,25 +353,40 @@ void cornerParts(String edge, Offset delta) {
           boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 8)],
         ),
         child: ClipOval(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              OverflowBox(
+          child: OverflowBox(
+            maxWidth: sizeOfBox.width * zoomExtent,
+            maxHeight: sizeOfBox.height * zoomExtent,
+
+            child: OverflowBox(
                 maxWidth: sizeOfBox.width * zoomExtent,
                 maxHeight: sizeOfBox.height * zoomExtent,
-                child: Transform(
-                  transform: Matrix4.translationValues(translateX, translateY, 0.0),
-                  child: Image.file(
-                    File(widget.pathToImage),
+                child: Transform.translate(
+                  offset: Offset(xVal, yVal),                 
+                  child: SizedBox(
                     width: sizeOfBox.width * zoomExtent,
                     height: sizeOfBox.height * zoomExtent,
-                    fit: BoxFit.fill, // fill, not contain — sizeOfBox already matches the image's real aspect ratio
+                    child: Stack(
+                      children: [
+                        Image.file(
+                          File(widget.pathToImage),
+                          width: sizeOfBox.width * zoomExtent,
+                          height: sizeOfBox.height * zoomExtent,
+                          fit: BoxFit.fill,
+                        ),
+                        CustomPaint(
+                        size: Size(sizeOfBox.width * zoomExtent, sizeOfBox.height * zoomExtent),
+                        painter: CornerPart(
+                          topL: zoom(topLeft!),
+                          topR: zoom(topRight!),
+                          bottomL: zoom(bottomLeft!),
+                          bottomR: zoom(bottomRight!),
+                        ),
+                        )
+                      ]
+                    )
                   ),
                 ),
               ),
-              Container(width: 1, height: 20, color: Colors.redAccent),
-              Container(width: 20, height: 1, color: Colors.redAccent),
-            ],
           ),
         ),
       ),
