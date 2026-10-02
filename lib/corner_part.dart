@@ -10,6 +10,7 @@ class CornerPart extends CustomPainter {
     paint.color = Colors.blueAccent;
     paint.strokeWidth = 2;
     paint.style = PaintingStyle.stroke;
+    paint.isAntiAlias = true;
 
     final cropPath = Path();
     cropPath.moveTo(topL.dx, topL.dy);
