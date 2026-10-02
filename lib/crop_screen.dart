@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:lumascanner/automatic_edge_detection.dart';
 import 'package:lumascanner/corner_part.dart';
 import 'package:image/image.dart' as image;
+import 'package:lumascanner/services/action_icon_button.dart';
+import 'package:lumascanner/services/image_rotation_service.dart';
 
 class CropScreen extends StatefulWidget {
   final String pathToImage;
@@ -28,6 +30,11 @@ class _CropScreenState extends State<CropScreen> {
 
   final automaticEdgeDetection = AutomaticEdgeDetection();
   DocumentCorners? detectedCorners;
+
+  // NEW: the image being cropped can now change (rotation), so I track its path here.
+  late String currentImagePath;
+  final rotationService = ImageRotationService();
+  bool isRotating = false;
   
   Rect calculateActualImageRectangle(Size sizeOfBox, Size imageSize) {
     final boxAspectRatio = sizeOfBox.width / sizeOfBox.height;
@@ -66,13 +73,16 @@ class _CropScreenState extends State<CropScreen> {
     ? Offset((bottomLeft!.dx + bottomRight!.dx) / 2, (bottomLeft!.dy + bottomRight!.dy) / 2)
     : null;
 
+
+
   Future<void> getSizeOfImage() async {
-  final imageBytes = await File(widget.pathToImage).readAsBytes();
+  final imageBytes = await File(currentImagePath).readAsBytes();
   final decodedImage = image.decodeImage(imageBytes)!;
 
 // Added this to run the edge detection since the image pixel dimension is already available...
-  final corners = await automaticEdgeDetection.detectEdges(widget.pathToImage);
+  final corners = await automaticEdgeDetection.detectEdges(currentImagePath);
   
+  if (!mounted) return;
   setState(() {
     pixelOfImage = Size(decodedImage.width.toDouble(), decodedImage.height.toDouble());
     detectedCorners = corners;
@@ -94,10 +104,6 @@ class _CropScreenState extends State<CropScreen> {
         pixelOfImage!.height.toInt(),
       );
 
-      debugPrint('pixCorners[0] (expected topLeft): ${pixCorners[0]}');
-      debugPrint('pixCorners[1] (expected topRight): ${pixCorners[1]}');
-      debugPrint('pixCorners[2] (expected bottomRight): ${pixCorners[2]}');
-      debugPrint('pixCorners[3] (expected bottomLeft): ${pixCorners[3]}');
 
       final xVal = actualImageRectangle.width/pixelOfImage!.width;
       final yVal = actualImageRectangle.height/pixelOfImage!.height;
@@ -133,21 +139,66 @@ class _CropScreenState extends State<CropScreen> {
         'bottomLeft': bottomLeft! - startingPointOfImageInBox,
         'bottomRight': bottomRight! - startingPointOfImageInBox,
         'sizeOfBox': sizeOfBox,
-        'imagePath': widget.pathToImage,
+        'imagePath': currentImagePath,
       });
     }
+  }
+
+// NEW: Left / Right. Rotates the actual image file, then re-runs detection on it.
+  Future<void> rotateImage(int degrees) async {
+    if (isRotating) return;
+    setState(() => isRotating = true);
+    try {
+      final rotatedPath = await rotationService.rotate(currentImagePath, degrees);
+      if (!mounted) return;
+      setState(() {
+        currentImagePath = rotatedPath;
+        topLeft = null;
+        topRight = null;
+        bottomLeft = null;
+        bottomRight = null;
+        pixelOfImage = null;
+        detectedCorners = null;
+      });
+      await getSizeOfImage();
+    } finally {
+      if (mounted) setState(() => isRotating = false);
+    }
+  }
+
+  void autoCrop() {
+    if (detectedCorners == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No document edges found')),
+      );
+      return;
+    }
+    setState(() => topLeft = null);
+  }
+
+  void selectAll() {
+    if (sizeOfBox == null) return;
+    final fullImage = startingPointOfImageInBox & sizeOfBox!;
+    setState(() {
+      topLeft = fullImage.topLeft;
+      topRight = fullImage.topRight;
+      bottomLeft = fullImage.bottomLeft;
+      bottomRight = fullImage.bottomRight;
+    });
   }
 
   @override
   void initState() {
     super.initState();
+    currentImagePath = widget.pathToImage;
     getSizeOfImage();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (pixelOfImage == null) {
+    if (pixelOfImage == null || isRotating) {
       return const Scaffold(
+        backgroundColor: Colors.black,
         body: Center(
           child: CircularProgressIndicator(),
         ),
@@ -157,7 +208,7 @@ class _CropScreenState extends State<CropScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Color(0xFF0D1B33),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -174,6 +225,46 @@ class _CropScreenState extends State<CropScreen> {
           ),
         ]
       ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: Color(0xFF0D1B33),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Color(0xFF3D8BFF).withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ActionIconButton(
+                icon: Icons.rotate_left_rounded,
+                label: 'Left',
+                onTap: () => rotateImage(270),
+              ),
+              ActionIconButton(
+                icon: Icons.rotate_right_rounded,
+                label: 'Right',
+                onTap: () => rotateImage(90),
+              ),
+
+              ActionIconButton(
+                icon: Icons.document_scanner_outlined,
+                label: 'Automatic',
+                onTap: autoCrop,
+              ),
+  
+              ActionIconButton(
+                icon: Icons.crop_free_rounded,
+                label: 'All',
+                onTap: selectAll,
+              ),
+            ],
+          ),
+        ),
+      ),
+
+
       body: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
@@ -182,7 +273,7 @@ class _CropScreenState extends State<CropScreen> {
             children: [
               Positioned.fill(
                 child: Image.file(
-                  File(widget.pathToImage),
+                  File(currentImagePath),
                   fit: BoxFit.contain,
                 ),
               ),
@@ -192,6 +283,7 @@ class _CropScreenState extends State<CropScreen> {
                     painter: CornerPart(topL: topLeft!, topR: topRight!, bottomL: bottomLeft!, bottomR: bottomRight!)
                   )
                 ),
+
                 buildDraggableCorner('topLeft', topLeft),
                 buildDraggableCorner('topRight', topRight),
                 buildDraggableCorner('bottomLeft', bottomLeft),
@@ -344,7 +436,6 @@ void cornerParts(String edge, Offset delta) {
   }
 
 
-  // Convert from full-box coordinates to image-relative coordinates
   final localPosition = position - startingPointOfImageInBox;
 
   final xVal = (magnifyingGlassSize / 2) - (localPosition.dx * zoomExtent);
@@ -382,7 +473,7 @@ void cornerParts(String edge, Offset delta) {
                     child: Stack(
                       children: [
                         Image.file(
-                          File(widget.pathToImage),
+                          File(currentImagePath),
                           width: sizeOfBox.width * zoomExtent,
                           height: sizeOfBox.height * zoomExtent,
                           fit: BoxFit.fill,
