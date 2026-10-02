@@ -176,7 +176,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
               child: ReorderableListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                onReorder: onReorder,
+                onReorderItem: onReorder,
                 itemCount: pages.length, 
                 itemBuilder: (context, index) {
                   final isPicked = index == currentIndex;

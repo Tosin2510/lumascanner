@@ -94,6 +94,11 @@ class _CropScreenState extends State<CropScreen> {
         pixelOfImage!.height.toInt(),
       );
 
+      debugPrint('pixCorners[0] (expected topLeft): ${pixCorners[0]}');
+      debugPrint('pixCorners[1] (expected topRight): ${pixCorners[1]}');
+      debugPrint('pixCorners[2] (expected bottomRight): ${pixCorners[2]}');
+      debugPrint('pixCorners[3] (expected bottomLeft): ${pixCorners[3]}');
+
       final xVal = actualImageRectangle.width/pixelOfImage!.width;
       final yVal = actualImageRectangle.height/pixelOfImage!.height;
 
@@ -249,10 +254,19 @@ class _CropScreenState extends State<CropScreen> {
     final minvalY = startingPointOfImageInBox.dy;
     final maxvalX = startingPointOfImageInBox.dx + sizeOfBox!.width;
     final maxvalY = startingPointOfImageInBox.dy + sizeOfBox!.height;
-    return Offset(
-      position.dx.clamp(minvalX, maxvalX),
-      position.dy.clamp(minvalY, maxvalY)
-    );
+
+    const valToConsiderSnapInPlace = 12.0;
+
+   double snaptoX = position.dx.clamp(minvalX, maxvalX);
+  double snaptoY = position.dy.clamp(minvalY, maxvalY);
+
+  // Snap to the image's actual edges when close
+  if ((snaptoX - minvalX).abs() < valToConsiderSnapInPlace) snaptoX = minvalX;
+  if ((snaptoX - maxvalX).abs() < valToConsiderSnapInPlace) snaptoX = maxvalX;
+  if ((snaptoY - minvalY).abs() < valToConsiderSnapInPlace) snaptoY = minvalY;
+  if ((snaptoY - maxvalY).abs() < valToConsiderSnapInPlace) snaptoY = maxvalY;
+
+  return Offset(snaptoX, snaptoY);
   }
 
   void midPointParts(String corner, Offset delta) {
