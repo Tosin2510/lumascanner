@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lumascanner/camera_screen.dart';
 import 'package:lumascanner/services/export_service.dart';
+import 'package:lumascanner/services/image_enhancement_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:printing/printing.dart';
 
@@ -23,6 +24,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   final ExportService exportService = ExportService();
   late String currentpdfPath;
   late String currentpdfName;
+  final enhancementService = ImageEnhancementService();
 
   @override
   void initState() {
@@ -54,11 +56,13 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
     );
 
     if (!mounted) return;
+    
+    List<XFile>? newPickedImages;
     if (decision == 'gallery') {
       final imagePicker = ImagePicker();
       final additionalImages = await imagePicker.pickMultiImage();
       if (additionalImages.isNotEmpty) {
-        editPages(extraPages: additionalImages);
+        newPickedImages = additionalImages;
       }
     } else if (decision == 'camera') {
       final value = await Navigator.push<List<XFile>>(
@@ -68,8 +72,19 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         )
       );
       if (value != null && value.isNotEmpty) {
-        editPages(extraPages: value);
+        newPickedImages = value;
       }
+
+      if (!mounted || newPickedImages == null) return;
+
+      final enhancedAddedPages = <XFile>[];
+      for (final page in newPickedImages) {
+        final enhancedImagePath = await enhancementService.autoEnhance(page.path);
+        enhancedAddedPages.add(XFile(enhancedImagePath));
+      }
+
+      if (!mounted) return;
+      editPages(extraPages: enhancedAddedPages);
     }
   }
 
