@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:lumascanner/crop_screen.dart';
 import 'package:lumascanner/pdf_view_screen.dart';
 import 'package:lumascanner/perspective_transform_service.dart';
+import 'package:lumascanner/services/image_enhancement_service.dart';
 import 'package:lumascanner/services/pdf_service.dart';
 
 class ScanPreviewScreen extends StatefulWidget {
@@ -24,17 +25,40 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
   late List<XFile> pages;
   final _perspectiveTransform = PerspectiveTransformService();
 
+  final enhancementService = ImageEnhancementService();
+
+  
+  bool isEnhancementHappening = true;
+
   @override
   void initState() {
     super.initState();
     pageController = PageController();
     pages = List.from(widget.images);
+    enhancePages();
   }
 
   @override
   void dispose() {
     pageController.dispose();
     super.dispose();
+  }
+
+
+  Future<void> enhancePages() async {
+    await Future.wait(widget.images.map((original) async {
+      try {
+        final enhancedPath = await enhancementService.autoEnhance(original.path);
+        if (!mounted) return;
+
+        final indexVal = pages.indexWhere((p) => p.path == original.path);
+        if (indexVal == -1) return;
+        setState(() => pages[indexVal] = XFile(enhancedPath));
+      } catch (e) {
+        debugPrint('Enhance failed for ${original.path}: $e'); 
+      }
+    }));
+    if (mounted) setState(() => isEnhancementHappening = false);
   }
 
   Future<void> pdfPart() async {
@@ -68,22 +92,25 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         bottomRight: val['bottomRight'],
         sizeOfBox: val['sizeOfBox'],
       );
+      if (!mounted || index >= pages.length) return;
       setState(() {
           pages[index] = XFile(transformedImagePath);
       });
     }
   }
 
-  void deleteSelected() async {
+  void deleteSelected() {
     setState(() {
       pages.removeAt(currentIndex);
       if (currentIndex >= pages.length) {
         currentIndex = pages.length - 1;
       }
-      if (pages.isNotEmpty) {
-        pageController.jumpToPage(currentIndex);
-      }
     });
+    if (pages.isEmpty) {
+      Navigator.pop(context);
+    } else {
+      pageController.jumpToPage(currentIndex);
+    }
   }
 
   void onReorder(int oldIndex, int newIndex) {
@@ -107,6 +134,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+  
     final showThumbnail = pages.length > 1;
 
     return Scaffold(
@@ -119,7 +147,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => pdfPart(),
+            onPressed: isEnhancementHappening ? null : pdfPart,
             child: const Text(
               'Done',
               style: TextStyle(
@@ -129,7 +157,13 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
               )
             )
           )
-        ]
+        ],
+        bottom: isEnhancementHappening
+            ? const PreferredSize(
+                preferredSize: Size.fromHeight(3),
+                child: LinearProgressIndicator(minHeight: 3),
+              )
+            : null,
       ),
       body: Column(
         children: [
@@ -205,6 +239,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
                                   Image.file(
                                     File(pages[index].path),
                                     fit: BoxFit.cover,
+                                    cacheWidth: 150,
                                   ),
                                   if (isPicked)
                                   Positioned.fill(
