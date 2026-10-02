@@ -1,21 +1,26 @@
 import 'package:document_scan/document_scan.dart';
 import 'package:flutter/foundation.dart';
 
-class AutomaticEdgeDetection{
+class AutomaticEdgeDetection {
   final detector = DocumentDetector();
 
   Future<DocumentCorners?> detectEdges(String pathToImage) async {
     final inputVal = ScanInput.file(pathToImage);
-    final cornerVal = await detector.detect(
-      inputVal,
-      sensitivity: DetectionSensitivity.strict,
-    );
 
-    if (cornerVal == null) {
-      debugPrint('No document has been detected');
-    } else {
-      debugPrint('Document detected with corners'); 
+    for (final sensitivity in [
+      DetectionSensitivity.strict,
+      DetectionSensitivity.balanced,
+    ]) {
+      
+      final value = await detector.detect(inputVal, sensitivity: sensitivity);
+
+      if (value != null) {
+        debugPrint('Detected using sensitivity: $sensitivity');
+        return value;
+      }
     }
-    return cornerVal;
+
+    debugPrint('No document detected at any sensitivity level');
+    return null;
   }
 }
