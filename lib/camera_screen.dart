@@ -244,13 +244,13 @@ double averageLuminance(CameraImage image) {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.black87,
+                    color: const Color(0xFF0D1118),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.flash_on, color: Colors.amber, size: 16),
+                      Icon(Icons.flash_on, color: Color(0xFF4A9EFF), size: 16),
                       SizedBox(width: 6),
                       Text('Light is low, tap to turn on flash.', style: TextStyle(color: Colors.white, fontSize: 12)),
                     ],
@@ -351,7 +351,7 @@ double averageLuminance(CameraImage image) {
                     width: 18,
                     height: 18,
                     decoration: const BoxDecoration(
-                      color:  Color(0xFF1D9E75),
+                      color: Color(0xFF4A9EFF),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -369,7 +369,7 @@ double averageLuminance(CameraImage image) {
         Text(
           'Preview',
           style: TextStyle(
-            color: hasPages ? Colors.blueAccent: Colors.white38,
+            color: hasPages ? const Color(0xFF4A9EFF) : Colors.white38,
             fontSize: 9,
             fontWeight: FontWeight.w600,
           )

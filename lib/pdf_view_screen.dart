@@ -36,18 +36,19 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   Future<void> addExtraPages() async {
     final decision = await showModalBottomSheet(
       context: context, 
+      backgroundColor: const Color(0xFF0D1118),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.camera_alt),
-              title: Text('Take Photo'),
+              leading: const Icon(Icons.camera_alt, color: Colors.white),
+              title: const Text('Take Photo', style: TextStyle(color: Colors.white)),
               onTap: () => Navigator.of(context).pop('camera'),
             ),
             ListTile(
-              leading: Icon(Icons.photo_library),
-              title: Text('Select from Gallery'),
+              leading: const Icon(Icons.photo_library, color: Colors.white),
+              title: const Text('Select from Gallery', style: TextStyle(color: Colors.white)),
               onTap: () => Navigator.of(context).pop('gallery'),
             )
           ]
@@ -99,22 +100,25 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Rename Document'),
+          backgroundColor: const Color(0xFF0D1118),
+          title: const Text('Rename Document', style: TextStyle(color: Colors.white)),
           content: TextField(
             controller: controller,
             autofocus: true,
+            style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(
               hintText: 'Enter document name',
+              hintStyle: TextStyle(color: Colors.white38),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Save'),
+              child: const Text('Save', style: TextStyle(color: Color(0xFF4A9EFF))),
             ),
           ]
         );
@@ -134,7 +138,10 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
+        backgroundColor: const Color(0xFF0D1118),
+        foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -170,21 +177,22 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         pdfPreviewPageDecoration: const BoxDecoration(),
       ),
       bottomNavigationBar: BottomAppBar(
+        color: const Color(0xFF0D1118),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             IconButton(
-              icon: const Icon(Icons.share),
+              icon: const Icon(Icons.share, color: Colors.white),
               tooltip: 'Share',
               onPressed: () => exportService.shareDocument(currentpdfPath),
             ),
             IconButton(
-              icon: const Icon(Icons.add_circle_outline),
+              icon: const Icon(Icons.add_circle_outline, color: Colors.white),
               tooltip: 'Add Page',
               onPressed: () => addExtraPages(),
             ),
             IconButton(
-              icon: const Icon(Icons.edit_note),
+              icon: const Icon(Icons.edit_note, color: Colors.white),
               tooltip: 'Edit',
               onPressed: () => editPages(),
             ),

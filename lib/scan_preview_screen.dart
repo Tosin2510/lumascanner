@@ -153,7 +153,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
             child: const Text(
               'Done',
               style: TextStyle(
-                color: Colors.blueAccent,
+                color: Color(0xFF4A9EFF),
                 fontSize: 17,
                 fontWeight: FontWeight.w500,
               )
@@ -163,7 +163,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         bottom: isEnhancementHappening
             ? const PreferredSize(
                 preferredSize: Size.fromHeight(3),
-                child: LinearProgressIndicator(minHeight: 3),
+                child: LinearProgressIndicator(minHeight: 3, color: Color(0xFF4A9EFF)),
               )
             : null,
       ),
@@ -191,9 +191,9 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             padding: const EdgeInsets.symmetric(vertical: 6),
             decoration: BoxDecoration(
-              color: Color(0xFF0D1B33),
+              color: const Color(0xFF0D1118),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Color(0xFF3D8BFF).withValues(alpha: 0.25)),
+              border: Border.all(color: const Color(0xFF4A9EFF).withValues(alpha: 0.2)),
             ),
 
             child: Row(
@@ -248,7 +248,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(7),
                               border: Border.all(
-                                color: isPicked ? Colors.blueAccent 
+                                color: isPicked ? const Color(0xFF4A9EFF) 
                                 : Colors.transparent, 
                                 width: 2
                               )
@@ -292,7 +292,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
   void reorderPart() {
     showModalBottomSheet(
       context: context, 
-      backgroundColor:const Color(0xFF0D1B33),
+      backgroundColor: const Color(0xFF0D1118),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

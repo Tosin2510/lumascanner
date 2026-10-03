@@ -170,7 +170,7 @@ class _CropScreenState extends State<CropScreen> {
   void autoCrop() {
     if (detectedCorners == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No document edges found')),
+        const SnackBar(content: Text('No automatic edges found')),
       );
       return;
     }
@@ -209,7 +209,7 @@ class _CropScreenState extends State<CropScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Color(0xFF0D1B33),
+        backgroundColor: const Color(0xFF0D1118),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -220,7 +220,7 @@ class _CropScreenState extends State<CropScreen> {
             child: const Text(
               'Done',
               style: TextStyle(
-                color: Colors.blueAccent,
+                color: Color(0xFF4A9EFF),
               )
             )
           ),
@@ -231,9 +231,9 @@ class _CropScreenState extends State<CropScreen> {
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
-            color: Color(0xFF0D1B33),
+            color: const Color(0xFF0D1118),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Color(0xFF3D8BFF).withValues(alpha: 0.25)),
+            border: Border.all(color: const Color(0xFF4A9EFF).withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -323,7 +323,7 @@ class _CropScreenState extends State<CropScreen> {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: Colors.blueAccent.withValues(alpha: 0.8),
+            color: const Color(0xFF4A9EFF).withValues(alpha: 0.8),
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
           )
@@ -420,7 +420,7 @@ void cornerParts(String edge, Offset delta) {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.9),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.blueAccent, width: 2),
+            border: Border.all(color: const Color(0xFF4A9EFF), width: 2),
           ),
         ),
       ),
@@ -498,5 +498,6 @@ void cornerParts(String edge, Offset delta) {
       ),
     ),
   );
+  
 }
 }

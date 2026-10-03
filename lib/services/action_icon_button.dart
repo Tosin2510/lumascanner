@@ -6,50 +6,47 @@ class ActionIconButton extends StatelessWidget {
     required this.icon,
     required this.label,
     this.onTap,
-    this.color,
+    this.isActive = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
-  final Color? color;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
-
     final tapAllowed = onTap != null;
-    final shade = tapAllowed ? (color ?? Color(0xFF3D8BFF)) : Colors.white24;
+    final iconColor = !tapAllowed
+        ? Colors.white24
+        : isActive
+            ? const Color(0xFF4A9EFF)
+            : Colors.white;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: shade.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: shade, size: 22),
-            ),
+            Icon(icon, color: iconColor, size: 24),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: tapAllowed ? Colors.white70 : Colors.white30,
+                color: !tapAllowed
+                    ? Colors.white24
+                    : isActive
+                        ? const Color(0xFF4A9EFF)
+                        : Colors.white70,
                 fontSize: 11,
               ),
             ),
           ],
-        )
-
-      ) 
+        ),
+      ),
     );
   }
 }
