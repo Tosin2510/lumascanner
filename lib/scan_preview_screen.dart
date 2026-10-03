@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:lumascanner/crop_screen.dart';
 import 'package:lumascanner/pdf_view_screen.dart';
 import 'package:lumascanner/perspective_transform_service.dart';
+import 'package:lumascanner/services/action_icon_button.dart';
 import 'package:lumascanner/services/image_enhancement_service.dart';
 import 'package:lumascanner/services/pdf_service.dart';
 
@@ -58,6 +59,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         debugPrint('Enhance failed for ${original.path}: $e'); 
       }
     }));
+
     if (mounted) setState(() => isEnhancementHappening = false);
   }
 
@@ -181,18 +183,37 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
                     ),
                   ),
                 ),
-                Positioned(
-                  bottom: 16,
-                  right: 16,
-                  child: FloatingActionButton.small(
-                    backgroundColor: Colors.black,
-                    onPressed: () => cropPart(currentIndex),
-                    child: const Icon(Icons.crop, color: Colors.white),
-                  ),
-                ),
               ],
             ),
           ),
+          
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: Color(0xFF0D1B33),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Color(0xFF3D8BFF).withValues(alpha: 0.25)),
+            ),
+
+            child: Row(
+               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ActionIconButton(
+                  icon: Icons.crop_rounded,
+                  label: 'Crop',
+                  onTap: () => cropPart(currentIndex),
+                ),
+                if (showThumbnail)
+                  ActionIconButton(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Reorder',
+                    onTap: reorderPart,
+                  ),
+              ]
+            )
+           ),
+
           if (showThumbnail)... [
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -205,6 +226,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
                 )
               )
             ),
+            
             SizedBox(
               height: 70,
               child: ReorderableListView.builder(
@@ -264,6 +286,84 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
             )
         ],
       ]),
+    );
+  }
+
+  void reorderPart() {
+    showModalBottomSheet(
+      context: context, 
+      backgroundColor:const Color(0xFF0D1B33),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+
+      builder: (contxt) => StatefulBuilder(builder: 
+      (context, setValState) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.6,
+          child: Column(
+            children: [
+              const SizedBox(height: 12,),
+               Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'Drag the handle to reorder pages',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
+                  itemCount: pages.length,
+                  onReorderItem: (oldIndex, newIndex) {
+                    onReorder(oldIndex, newIndex);
+                    setValState(() {});
+                  },
+                  itemBuilder: (context, index) => ListTile(
+                    key: ValueKey(pages[index].path),
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.file(
+                        File(pages[index].path),
+                        width: 44,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        cacheWidth: 120,
+                      ),
+                    ),
+
+                    title: Text(
+                      'Page ${index + 1}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+
+                    trailing: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(
+                        Icons.drag_handle_rounded,
+                        color: Colors.white54,
+                      ),
+                    ),
+                  )
+                )
+              )
+            ],
+          )
+
+      )
+
+      )
     );
   }
 }
