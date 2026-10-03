@@ -31,7 +31,7 @@ class _CropScreenState extends State<CropScreen> {
   final automaticEdgeDetection = AutomaticEdgeDetection();
   DocumentCorners? detectedCorners;
 
-  // NEW: the image being cropped can now change (rotation), so I track its path here.
+  // Cropped can now rotate... so I track its path here.
   late String currentImagePath;
   final rotationService = ImageRotationService();
   bool isRotating = false;
@@ -144,12 +144,14 @@ class _CropScreenState extends State<CropScreen> {
     }
   }
 
-// NEW: Left / Right. Rotates the actual image file, then re-runs detection on it.
+// Rotates the image file...runs automatic edge detection again.
   Future<void> rotateImage(int degrees) async {
     if (isRotating) return;
     setState(() => isRotating = true);
     try {
-      final rotatedPath = await rotationService.rotate(currentImagePath, degrees);
+      final (rotatedPath, newWidth, newHeight) =
+          await rotationService.rotateBasedOnImgSize(currentImagePath, degrees);
+      final corners = await automaticEdgeDetection.detectEdges(rotatedPath);
       if (!mounted) return;
       setState(() {
         currentImagePath = rotatedPath;
@@ -157,10 +159,9 @@ class _CropScreenState extends State<CropScreen> {
         topRight = null;
         bottomLeft = null;
         bottomRight = null;
-        pixelOfImage = null;
-        detectedCorners = null;
+        pixelOfImage = Size(newWidth.toDouble(), newHeight.toDouble());
+        detectedCorners = corners;
       });
-      await getSizeOfImage();
     } finally {
       if (mounted) setState(() => isRotating = false);
     }
@@ -200,7 +201,7 @@ class _CropScreenState extends State<CropScreen> {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(color: Colors.white),
         ),
       );
     }
