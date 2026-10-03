@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lumascanner/camera_screen.dart';
+import 'package:lumascanner/edit_text_screen.dart';
 import 'package:lumascanner/extracted_text_screen.dart';
 import 'package:lumascanner/services/export_service.dart';
 import 'package:lumascanner/services/image_enhancement_service.dart';
@@ -24,16 +25,23 @@ class PdfViewScreen extends StatefulWidget {
 }
 
 class _PdfViewScreenState extends State<PdfViewScreen> {
+
   final ExportService exportService = ExportService();
-  late String currentpdfPath;
-  late String currentpdfName;
+  late String currentpathOfPdf;
+  late String currentNameOfPdf;
   final enhancementService = ImageEnhancementService();
 
   @override
   void initState() {
     super.initState();
-    currentpdfPath = widget.pdfPath;
-    currentpdfName = path.basenameWithoutExtension(currentpdfPath);
+    currentpathOfPdf = widget.pdfPath;
+    currentNameOfPdf = path.basenameWithoutExtension(currentpathOfPdf);
+  }
+
+  @override
+  void dispose() {
+    ocrService.dispose();
+    super.dispose();
   }
 
   Future<void> addExtraPages() async {
@@ -49,12 +57,14 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
               title: const Text('Take Photo', style: TextStyle(color: Colors.white)),
               onTap: () => Navigator.of(context).pop('camera'),
             ),
+
             ListTile(
               leading: const Icon(Icons.photo_library, color: Colors.white),
               title: const Text('Select from Gallery', style: TextStyle(color: Colors.white)),
               onTap: () => Navigator.of(context).pop('gallery'),
             )
           ]
+
         )
       )
     );
@@ -98,7 +108,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   }
 
   Future<void> renameDocument() async {
-    final TextEditingController controller = TextEditingController(text: currentpdfName);
+    final TextEditingController controller = TextEditingController(text: currentNameOfPdf);
     final newName = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -128,13 +138,13 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       }
     );
     if (newName != null && newName.isNotEmpty) {
-      final directory = path.dirname(currentpdfPath);
+      final directory = path.dirname(currentpathOfPdf);
       final newPath = path.join(directory, "$newName.pdf");
-      final renamedFile = await File(currentpdfPath).rename(newPath);
+      final renamedFile = await File(currentpathOfPdf).rename(newPath);
 
       setState(() {
-        currentpdfPath = renamedFile.path;
-        currentpdfName = newName;
+        currentpathOfPdf = renamedFile.path;
+        currentNameOfPdf  = newName;
       });
     }
   }
@@ -155,7 +165,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
             children: [
               Flexible(
                 child: Text(
-                  currentpdfName,
+                  currentNameOfPdf,
                   overflow: TextOverflow.ellipsis,
                 )
               ),
@@ -166,8 +176,8 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         ),
       ),
       body: PdfPreview(
-        key: ValueKey(currentpdfPath),
-        build: (format) => File(currentpdfPath).readAsBytes(),
+        key: ValueKey(currentpathOfPdf),
+        build: (format) => File(currentpathOfPdf).readAsBytes(),
         useActions: false,
         scrollViewDecoration: const BoxDecoration(color: Colors.black),
         previewPageMargin: EdgeInsets.zero,
@@ -188,7 +198,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
             IconButton(
               icon: const Icon(Icons.share, color: Colors.white),
               tooltip: 'Share',
-              onPressed: () => exportService.shareDocument(currentpdfPath),
+              onPressed: () => exportService.shareDocument(currentpathOfPdf),
             ),
             IconButton(
               icon: const Icon(Icons.add_circle_outline, color: Colors.white),
@@ -206,13 +216,65 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
               tooltip: 'Extract Text',
               onPressed: extractText,
             ),
+
+            IconButton(
+              icon: const Icon(Icons.edit_document, color: Colors.white),
+              tooltip: 'Edit Text',
+              onPressed: editText,
+            ),
           ]
         )
       )
     );
   }
 
-final ocrService = OCRService();
+  final ocrService = OCRService();
+
+  Future<void> editText() async {
+    if (widget.pages.length == 1) {
+        final result = await ocrService.processImage(widget.pages[0].path);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditTextScreen(page: widget.pages[0], pageResult: result),
+          ),
+        );
+        return;
+    }
+
+    final selectedPageIndex = await showModalBottomSheet<int>(
+    context: context,
+    backgroundColor: const Color(0xFF0D1118),
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int val = 0; val < widget.pages.length; val++)
+            ListTile(
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.file(File(widget.pages[val].path), width: 40, height: 50, fit: BoxFit.cover),
+              ),
+              title: Text('Page ${val + 1}', style: const TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, val),
+            ),
+        ],
+      ),
+    ),
+  );
+
+  if (selectedPageIndex == null || !mounted) return;
+  final result = await ocrService.processImage(widget.pages[selectedPageIndex].path);
+  if (!mounted) return;
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => EditTextScreen(page: widget.pages[selectedPageIndex], pageResult: result),
+    ),
+  );
+
+  }
 
   Future<void> extractText() async {
   showDialog(
