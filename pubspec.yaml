@@ -43,6 +43,7 @@ dependencies:
   printing: ^5.14.3
   image: ^4.10.1
   document_scan: ^0.3.1
+  google_mlkit_text_recognition: ^0.17.1
 
 dev_dependencies:
   flutter_test:
