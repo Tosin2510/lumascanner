@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lumascanner/camera_screen.dart';
+import 'package:lumascanner/extracted_text_screen.dart';
 import 'package:lumascanner/services/export_service.dart';
 import 'package:lumascanner/services/image_enhancement_service.dart';
+import 'package:lumascanner/services/ocr_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:printing/printing.dart';
 
@@ -176,6 +179,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         allowSharing: false,
         pdfPreviewPageDecoration: const BoxDecoration(),
       ),
+      
       bottomNavigationBar: BottomAppBar(
         color: const Color(0xFF0D1118),
         child: Row(
@@ -196,9 +200,44 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
               tooltip: 'Edit',
               onPressed: () => editPages(),
             ),
+
+            IconButton(
+              icon: const Icon(Icons.text_fields, color: Colors.white),
+              tooltip: 'Extract Text',
+              onPressed: extractText,
+            ),
           ]
         )
       )
     );
   }
+
+final ocrService = OCRService();
+
+  Future<void> extractText() async {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+  );
+
+  final pageResults = <RecognizedText>[];
+  for (final page in widget.pages) {
+    final result = await ocrService.processImage(page.path);
+    pageResults.add(result);
+  }
+
+  if (!mounted) return;
+  Navigator.pop(context);
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => ExtractedTextScreen(
+        pages: widget.pages,
+        pageResults: pageResults,
+      ),
+    ),
+  );
+}
 }
