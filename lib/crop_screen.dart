@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:document_scan/document_scan.dart';
 import 'package:flutter/material.dart';
+import 'package:lumascanner/action_icon_button.dart';
 import 'package:lumascanner/automatic_edge_detection.dart';
 import 'package:lumascanner/corner_part.dart';
 import 'package:image/image.dart' as image;
-import 'package:lumascanner/services/action_icon_button.dart';
 import 'package:lumascanner/services/image_rotation_service.dart';
 
 class CropScreen extends StatefulWidget {
