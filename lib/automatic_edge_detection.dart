@@ -15,7 +15,7 @@ class AutomaticEdgeDetection {
       final value = await detector.detect(inputVal, sensitivity: sensitivity);
 
       if (value != null) {
-        debugPrint('Detected using sensitivity: $sensitivity');
+        debugPrint('Detected at $sensitivity level');
         return value;
       }
     }

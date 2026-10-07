@@ -33,10 +33,10 @@ class _ExtractedTextScreenState extends State<ExtractedTextScreen> {
   }
 
   String buildFullText() {
-    final buffer = StringBuffer();
+    final value = StringBuffer();
 
-    for (int i = 0; i < widget.pageResults.length; i++) {
-      final sortedBlocks = List<TextBlock>.from(widget.pageResults[i].blocks)
+    for (int val = 0; val < widget.pageResults.length; val++) {
+      final sortedBlocks = List<TextBlock>.from(widget.pageResults[val].blocks)
         ..sort((a, b) {
           final compareTop = a.boundingBox.top.compareTo(b.boundingBox.top);
           if (compareTop != 0) return compareTop;
@@ -44,15 +44,15 @@ class _ExtractedTextScreenState extends State<ExtractedTextScreen> {
         });
 
       if (widget.pageResults.length > 1) {
-        buffer.writeln('Page ${i + 1}');
+        value.writeln('Page ${val + 1}');
       }
       for (final block in sortedBlocks) {
-        buffer.writeln(block.text);
+        value.writeln(block.text);
       }
-      buffer.writeln();
+      value.writeln();
     }
 
-    return buffer.toString();
+    return value.toString();
   }
 
   void copyToClipboard() {
