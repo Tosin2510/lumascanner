@@ -32,6 +32,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   late String currentNameOfPdf;
   final enhancementService = ImageEnhancementService();
   Offset? dragStart;
+  final Map<TextElement, Color> textColorOfWord = {};
   bool isLoadingPages = true;
   List<Size?> pixelSizePerPage = [];
   final Map<TextElement, String> updatedText = {};
@@ -43,9 +44,16 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   List<TextElement> highlightedWords = [];
   final Map<TextElement, TextLine> lineOfWord = {};
   final Map<TextElement, Color> backgroundOfWord = {};
+  final Map<TextElement, bool> boldOfWord = {};
 
   int? startIndex;
   int? stopIndex;
+
+
+  final Map<TextElement, double> manualFontAdjustment = {};
+  final Map<TextElement, FontWeight> manualWeightAdjustment = {};
+  final Map<TextElement, Color> manualColorAdjustment = {};
+  final Map<TextElement, Offset> manualPositionAdjustment = {};
 
   @override
   void initState() {
@@ -101,7 +109,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
     redCol.sort();
     greenCol.sort();
     blueCol.sort();
-    final middleValue = textPoints.length ~/ 2;
+    final middleValue = (textPoints.length / 2).toInt();
     return Color.fromARGB(255, redCol[middleValue], greenCol[middleValue], blueCol[middleValue]);
   }
 
@@ -133,9 +141,26 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
           value = value.expandToInclude(rectOf(nextWord));
         }
 
-        final lineRightAtEdge = display.left + display.width;
-        if(value.right < lineRightAtEdge) {
-          value = Rect.fromLTRB(value.left, value.top, lineRightAtEdge, value.bottom);
+        final oldArea = value;
+        var rightStop = display.left + display.width;
+        var leftStop = display.left;
+        final middlePart = value.center.dy;
+
+        for (final otherText in words) {
+          final otherRect = rectOf(otherText);
+          final isOnSameRow = otherRect.top < middlePart && otherRect.bottom > middlePart;
+          final isToTheRight = otherRect.left >= value.right - 1;
+          final isToTheLeft = otherRect.right <= value.left + 1;
+          if (isOnSameRow && isToTheRight && otherRect.left - 2 < rightStop) {
+            rightStop = otherRect.left - 2;
+          }
+          if (isOnSameRow && isToTheLeft && otherRect.right + 2 > leftStop) {
+            leftStop = otherRect.right + 2;
+          }
+        }
+
+        if (value.right < rightStop) {
+          value = Rect.fromLTRB(value.left, value.top, rightStop, value.bottom);
         }
  
       covers.add(
@@ -146,33 +171,65 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       );
  
       if (newText.isEmpty) continue;
- 
-      final textColor = background.computeLuminance() > 0.5
-          ? const Color(0xFF1A1A1A)
-          : Colors.white;
- 
+      
+      final textColor = manualColorAdjustment[word] ?? textColorOfWord[word] ?? (background.computeLuminance() > 0.5 ? const Color(0xFF1A1A1A) : Colors.white);
+      final weightOfText = manualWeightAdjustment[word] ?? (boldOfWord[word] == true ? FontWeight.w700 : FontWeight.w400);
+      var fontSizeToUse = manualFontAdjustment[word] ?? similarFontSizeWithOriginalText(word, wordRect, scaleX, scaleY);
+      var widthValueNeeded = calculateExactWidthOfOriginalText(newText, fontSizeToUse, weightOfText);
+
+      final roomOnTheRow = rightStop - leftStop;
+      if (roomOnTheRow > 0 && widthValueNeeded > roomOnTheRow) {
+        fontSizeToUse = fontSizeToUse * roomOnTheRow / widthValueNeeded;
+        widthValueNeeded = roomOnTheRow;
+      }
+
+      final originalLine = lineOfWord[word];
+      final wholeLineEdited = originalLine != null &&
+          originalLine.elements.every((element) => updatedText.containsKey(element));
+      final alignmentOfText = wholeLineEdited ? alignmentOfOriginalText(word, display, scaleX) : Alignment.centerLeft;
+
+      double textLeft;
+      if (alignmentOfText == Alignment.center) {
+        textLeft = oldArea.center.dx - widthValueNeeded / 2;
+      } else if (alignmentOfText == Alignment.centerRight) {
+        textLeft = oldArea.right - widthValueNeeded;
+      } else {
+        textLeft = oldArea.left;
+      }
+      if (roomOnTheRow > widthValueNeeded) {
+        textLeft = textLeft.clamp(leftStop, rightStop - widthValueNeeded);
+      }
+
+      final offsetVal = manualPositionAdjustment[word] ?? Offset.zero;
+
       newTexts.add(
-        Positioned.fromRect(
-          rect: value,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              newText,
-              maxLines: 1,
-              style: TextStyle(
-                color: textColor,
-                fontSize: wordRect.height * 0.8,
-                height: 1.0,
+        Positioned(
+          left: textLeft + offsetVal.dx,
+          top: value.top + offsetVal.dy,
+          width: widthValueNeeded + 1,
+          height: value.height,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                newText,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: fontSizeToUse,
+                  fontWeight: weightOfText,
+                  height: 1.0,
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
     }
 
   return covers..addAll(newTexts);
   }
+ 
 
   Future<void> loadAllPages() async {
 
@@ -191,6 +248,11 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
             wordsForPage.add(element);
             lineOfWord[element] = line;
             backgroundOfWord[element] = originalTextBackground(decodedImage, element.boundingBox);
+            final colorOfInk = colorOfOriginalText(decodedImage, element.boundingBox, backgroundOfWord[element]!);
+            if (colorOfInk != null) {
+              textColorOfWord[element] = colorOfInk;
+            }
+            boldOfWord[element] = boldTextLook(decodedImage, element.boundingBox, backgroundOfWord[element]!);
           }
         }
       }
@@ -205,6 +267,84 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       wordsPerPage = wordsVal;
       isLoadingPages = false;
     });
+  }
+
+  Color? colorOfOriginalText(image.Image decodedImage, Rect box, Color background) {
+    final left = box.left.toInt().clamp(0, decodedImage.width - 1);
+    final right = box.right.toInt().clamp(0, decodedImage.width - 1);
+    final top = box.top.toInt().clamp(0, decodedImage.height - 1);
+    final bottom = box.bottom.toInt().clamp(0, decodedImage.height - 1);
+    if (right <= left || bottom <= top) return null;
+
+    final redB = (background.r * 255).round();
+    final greenB = (background.g * 255).round();
+    final blueB = (background.b * 255).round();
+
+    final pixlValInBox = 1 + ((right - left) * (bottom - top)) ~/ 1500;
+
+    final pixelsInBox = <List<int>>[];
+    for (int yVal = top; yVal <= bottom; yVal += pixlValInBox) {
+      for (int xVal = left; xVal <= right; xVal += pixlValInBox) {
+        final pixelColor = decodedImage.getPixel(xVal, yVal);
+        final red = pixelColor.r.toInt();
+        final green = pixelColor.g.toInt();
+        final blue = pixelColor.b.toInt();
+        final distance = (red - redB) * (red - redB) +
+            (green - greenB) * (green - greenB) +
+            (blue - blueB) * (blue - blueB);
+        pixelsInBox.add([distance, red, green, blue]);
+      }
+    }
+
+    if (pixelsInBox.isEmpty) return null;
+
+    pixelsInBox.sort((vala, valb) => valb[0].compareTo(vala[0]));
+
+    if (pixelsInBox.first[0] < 1600) return null;
+
+    final count = (pixelsInBox.length * 0.1).ceil().clamp(1, pixelsInBox.length);
+
+    int redT = 0;
+    int greenT = 0;
+    int blueT = 0;
+    for (int val = 0; val < count; val++) {
+      redT += pixelsInBox[val][1];
+      greenT += pixelsInBox[val][2];
+      blueT += pixelsInBox[val][3];
+    }return Color.fromARGB(255, (redT / count).toInt(), (greenT / count).toInt(), (blueT / count).toInt());
+  }
+
+  bool boldTextLook(image.Image decodedImage, Rect box, Color background) {
+    final left = box.left.toInt().clamp(0, decodedImage.width - 1);
+    final right = box.right.toInt().clamp(0, decodedImage.width - 1);
+    final top = box.top.toInt().clamp(0, decodedImage.height - 1);
+    final bottom = box.bottom.toInt().clamp(0, decodedImage.height - 1);
+    if (right <= left || bottom <= top) return false;
+
+    final redB = (background.r * 255).round();
+    final greenB = (background.g * 255).round();
+    final blueB = (background.b * 255).round();
+
+    final stepVal = 1 + ((right - left) * (bottom - top)) ~/ 1500;
+
+    int inkVal = 0;
+    int sample = 0;
+    for (int yVal = top; yVal <= bottom; yVal += stepVal) {
+      for (int xVal = left; xVal <= right; xVal += stepVal) {
+        final pixelColor = decodedImage.getPixel(xVal, yVal);
+        final red = pixelColor.r.toInt();
+        final green = pixelColor.g.toInt();
+        final blue = pixelColor.b.toInt();
+        final distance = (red - redB) * (red - redB) +
+            (green - greenB) * (green - greenB) +
+            (blue - blueB) * (blue - blueB);
+        sample++;
+        if (distance > 6000) inkVal++;
+      }
+    }
+
+    if (sample == 0) return false;
+    return inkVal / sample  > 0.25;
   }
 
   void startTextHighlight(Offset textPosition, int pageIndex) {
@@ -273,6 +413,56 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       }
       highlightedWords = words.sublist(startIndex!, stopIndex! + 1);
     });
+  }
+
+  double calculateExactWidthOfOriginalText(String text, double fontSize, [FontWeight weight = FontWeight.w400]) {
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: TextStyle(fontSize: fontSize, fontWeight: weight)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    return textPainter.width;
+  }
+
+  double inkHeightRatio(String text) {
+    final hasTallLetters = RegExp(r'[A-Z0-9bdfhijklt|]').hasMatch(text);
+    final hasDescenders = RegExp(r'[gjpqy,;()\[\]|$@]').hasMatch(text);
+    return (hasTallLetters ? 0.72 : 0.53) + (hasDescenders ? 0.21 : 0.0);
+  }
+
+  double similarFontSizeWithOriginalText(TextElement word, Rect wordRect, double scaleX, double scaleY) {
+    final line = lineOfWord[word];
+    if (line == null) return wordRect.height / inkHeightRatio(word.text);
+
+    final lineHeight = line.boundingBox.height * scaleY;
+    return lineHeight / inkHeightRatio(line.text);
+  }
+
+  String fixSelectedCurrencySign(String text) {
+    const amount = r'(?=\s?(?:\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?(?![\d,])|\d+\.\d{2}(?!\d)))';
+    return text
+        .replaceAllMapped(RegExp(r'(^|\s)8N(?=\s?\d)'), (match) => '${match[1]}₦')
+        .replaceAllMapped(RegExp(r'(^|\s)[N#]' + amount), (match) => '${match[1]}₦');
+  }
+
+  Alignment alignmentOfOriginalText(TextElement word, Rect display, double scaleX) {
+    final line = lineOfWord[word];
+    if (line == null) return Alignment.centerLeft;
+
+    final lineLeft = display.left + line.boundingBox.left * scaleX;
+    final lineRight = display.left + line.boundingBox.right * scaleX;
+    final lineMiddle = (lineLeft + lineRight) / 2;
+    final pageMiddle = display.left + display.width / 2;
+    final gapOnLeft = lineLeft - display.left;
+    final gapOnRight = display.right - lineRight;
+
+    if ((lineMiddle - pageMiddle).abs() < display.width * 0.03 && gapOnLeft > display.width * 0.1) {
+      return Alignment.center;
+    }
+    if (gapOnRight < display.width * 0.08 && gapOnLeft > display.width * 0.3) {
+      return Alignment.centerRight;
+    }
+    return Alignment.centerLeft;
   }
 
 
@@ -543,7 +733,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         currentNameOfPdf  = newName;
       });
     }
-  }
+     }
 
   Widget buildItemInPage(int pageIndex) {
     final pixelOfImage = pixelSizePerPage[pageIndex];
@@ -671,10 +861,10 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
                     ),
                 ],
               ),
-            );
+                 );
           },
         ),
-      ),
+           ),
     );
   }
 
@@ -701,13 +891,12 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
               ),
               const SizedBox(width: 6),
               const Icon(Icons.edit, size: 16)
-            ],
+               ],
           )
         ),
-      ),
+          ),
       
-      body: isLoadingPages
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+      body: isLoadingPages ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : ListView.builder(
               itemCount: widget.pages.length,
               itemBuilder: (context, index) => buildItemInPage(index),
@@ -776,68 +965,202 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
 
   void openEditTextPart() {
     if (highlightedWords.isEmpty) return;
-    final controller = TextEditingController(text: highlightedText);
+    final controller = TextEditingController(text: fixSelectedCurrencySign(highlightedText));
+    final firstTextVal = highlightedWords.first;
+
+    double fontSizeVal = manualFontAdjustment[firstTextVal] ?? similarFontSizeWithOriginalText(firstTextVal, Rect.zero, 1, 1); // Rect.zero fine since line-based calc ignores wordRect when line exists
+    FontWeight weightVal = manualWeightAdjustment[firstTextVal] ?? (boldOfWord[firstTextVal] == true ? FontWeight.w700 : FontWeight.w400);
+    Color colorVal = manualColorAdjustment[firstTextVal] ?? textColorOfWord[firstTextVal] ?? Colors.black;
+    Offset offsetVals = manualPositionAdjustment[firstTextVal] ?? Offset.zero; 
 
     showModalBottomSheet(
       context: context, 
       backgroundColor: const Color(0xFF0D1118),
       isScrollControlled: true,
 
-      builder: (context) => Padding(
+      builder: (context) => StatefulBuilder(
+      builder: (context, setSheetState) => Padding(
         padding: EdgeInsets.only(
           left: 16, right: 16, top: 16,
           bottom: MediaQuery.of(context).viewInsets.bottom + 16,
         ),
 
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Edit Text',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: controller,
-              maxLines: null,
-              autofocus: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF4A9EFF))),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Edit Text',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
+              Row(
+                children: [
+                  for (final symbol in ['₦', '\$', '€', '£'])
+                  Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ActionChip(
+                        label: Text(symbol, style: const TextStyle(color: Colors.white)),
+                        backgroundColor: const Color(0xFF1B2433),
+                        side: const BorderSide(color: Colors.white24),
+                        onPressed: () {
+                          final selection = controller.selection;
+                          final start = selection.isValid ? selection.start : controller.text.length;
+                          final end = selection.isValid ? selection.end : controller.text.length;
+                          controller.value = TextEditingValue(
+                            text: controller.text.replaceRange(start, end, symbol),
+                            selection: TextSelection.collapsed(offset: start + symbol.length),
+                          );
+                        }
+                      )
+                  )
+              ],),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: controller,
+                maxLines: null,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF4A9EFF))),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Font size', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ),
+              Slider(
+                value: fontSizeVal,
+                min: 6,
+                max: 72,
+                activeColor: const Color(0xFF4A9EFF),
+                onChanged: (newVal) => setSheetState(() => fontSizeVal = newVal),
+              ),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Bold', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Switch(
+                    value: weightVal == FontWeight.w700,
+                    activeThumbColor: const Color(0xFF4A9EFF),
+                    onChanged: (val) => setSheetState(() {
+                      weightVal = val ? FontWeight.w700 : FontWeight.w400;
+                    }),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Text colour', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ),
+              const SizedBox(height: 6),
+
+              Row(
+                children: [
+                  for (final col in [Colors.black, Colors.white, const Color(0xFF1A1A1A), Colors.red, Colors.blue, const Color(0xFF4A9EFF)])
+                  Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setSheetState(() => colorVal = col),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: col,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colorVal == col ? const Color(0xFF4A9EFF) : Colors.white24,
+                              width: colorVal == col ? 2.5 : 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ]
+              ),
+
+              const SizedBox(height: 8),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Position', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              ),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.keyboard_arrow_left, color: Colors.white),
+                    onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(-2, 0)),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
+                        onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(0, -2)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                        onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(0, 2)),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.keyboard_arrow_right, color: Colors.white),
+                    onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(2, 0)),
+                  ),
                   TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
-                ),
+                    onPressed: () => setSheetState(() => offsetVals = Offset.zero),
+                    child: const Text('Reset', style: TextStyle(color: Colors.white54)),
+                  ),
+                ],
+              ),
 
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      updatedText[highlightedWords.first] = controller.text;
-                      for (int val = 1; val < highlightedWords.length; val++) {
-                        updatedText[highlightedWords[val]] = '';
-                      }
-                    });
-                    
-                    Navigator.pop(context);
-                    cancelHighlightedText();
-                  },
-                  child: const Text('Done', style: TextStyle(color: Color(0xFF4A9EFF))),
-                ),
-              ]
-            )
-          ],
-        )    
-      )
-    );
+              const SizedBox(height: 12),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        updatedText[highlightedWords.first] = controller.text;
+                        for (int val = 1; val < highlightedWords.length; val++) {
+                          updatedText[highlightedWords[val]] = '';
+                        }
+                        manualFontAdjustment[firstTextVal] = fontSizeVal;
+                        manualWeightAdjustment[firstTextVal] = weightVal;
+                        manualColorAdjustment[firstTextVal] = colorVal;
+                        manualPositionAdjustment[firstTextVal] = offsetVals;
+                      });
+                      
+                      Navigator.pop(context);
+                      cancelHighlightedText();
+                    },
+                    child: const Text('Done', style: TextStyle(color: Color(0xFF4A9EFF))),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    )
+  );
   }
 }
