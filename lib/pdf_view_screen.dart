@@ -52,7 +52,6 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
 
   final Map<TextElement, double> manualFontAdjustment = {};
   final Map<TextElement, FontWeight> manualWeightAdjustment = {};
-  final Map<TextElement, Color> manualColorAdjustment = {};
   final Map<TextElement, Offset> manualPositionAdjustment = {};
 
   @override
@@ -172,7 +171,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
  
       if (newText.isEmpty) continue;
       
-      final textColor = manualColorAdjustment[word] ?? textColorOfWord[word] ?? (background.computeLuminance() > 0.5 ? const Color(0xFF1A1A1A) : Colors.white);
+      final textColor = textColorOfWord[word] ?? Colors.black;
       final weightOfText = manualWeightAdjustment[word] ?? (boldOfWord[word] == true ? FontWeight.w700 : FontWeight.w400);
       var fontSizeToUse = manualFontAdjustment[word] ?? similarFontSizeWithOriginalText(word, wordRect, scaleX, scaleY);
       var widthValueNeeded = calculateExactWidthOfOriginalText(newText, fontSizeToUse, weightOfText);
@@ -853,8 +852,12 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
                             IconButton(
                               icon: const Icon(Icons.edit, color: Color(0xFF4A9EFF), size: 18),
                               tooltip: 'Edit Text',
-                              onPressed: openEditTextPart,
-                            ),
+                              onPressed: () => openEditTextPart(
+                                display,
+                                scaleX,
+                                scaleY,
+                                pageIndex,
+                              ),                            ),
                           ],
                         ),
                       ),
@@ -963,14 +966,26 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   );
 }
 
-  void openEditTextPart() {
+  void openEditTextPart(Rect display, double scaleX, double scaleY, int pageIndex,) {
     if (highlightedWords.isEmpty) return;
     final controller = TextEditingController(text: fixSelectedCurrencySign(highlightedText));
     final firstTextVal = highlightedWords.first;
 
-    double fontSizeVal = manualFontAdjustment[firstTextVal] ?? similarFontSizeWithOriginalText(firstTextVal, Rect.zero, 1, 1); // Rect.zero fine since line-based calc ignores wordRect when line exists
+    final wordRect = Rect.fromLTWH(
+      display.left + firstTextVal.boundingBox.left * scaleX,
+      display.top + firstTextVal.boundingBox.top * scaleY,
+      firstTextVal.boundingBox.width * scaleX,
+      firstTextVal.boundingBox.height * scaleY,
+    );
+
+    double fontSizeVal = manualFontAdjustment[firstTextVal] ?? similarFontSizeWithOriginalText(
+      firstTextVal,
+      wordRect,
+      scaleX,
+      scaleY,
+    );
+    
     FontWeight weightVal = manualWeightAdjustment[firstTextVal] ?? (boldOfWord[firstTextVal] == true ? FontWeight.w700 : FontWeight.w400);
-    Color colorVal = manualColorAdjustment[firstTextVal] ?? textColorOfWord[firstTextVal] ?? Colors.black;
     Offset offsetVals = manualPositionAdjustment[firstTextVal] ?? Offset.zero; 
 
     showModalBottomSheet(
@@ -1048,46 +1063,47 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Bold', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                  Switch(
-                    value: weightVal == FontWeight.w700,
-                    activeThumbColor: const Color(0xFF4A9EFF),
-                    onChanged: (val) => setSheetState(() {
-                      weightVal = val ? FontWeight.w700 : FontWeight.w400;
-                    }),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Text colour', style: TextStyle(color: Colors.white70, fontSize: 12)),
-              ),
-              const SizedBox(height: 6),
-
-              Row(
-                children: [
-                  for (final col in [Colors.black, Colors.white, const Color(0xFF1A1A1A), Colors.red, Colors.blue, const Color(0xFF4A9EFF)])
-                  Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setSheetState(() => colorVal = col),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: col,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: colorVal == col ? const Color(0xFF4A9EFF) : Colors.white24,
-                              width: colorVal == col ? 2.5 : 1,
-                            ),
-                          ),
-                        ),
-                      ),
+                  DropdownButton<FontWeight>(
+                  value: weightVal,
+                  items: const [
+                    DropdownMenuItem(
+                      value: FontWeight.w300,
+                      child: Text('Light'),
                     ),
-                ]
+                    DropdownMenuItem(
+                      value: FontWeight.w400,
+                      child: Text('Regular'),
+                    ),
+                    DropdownMenuItem(
+                      value: FontWeight.w500,
+                      child: Text('Medium'),
+                    ),
+                    DropdownMenuItem(
+                      value: FontWeight.w600,
+                      child: Text('Semi Bold'),
+                    ),
+                    DropdownMenuItem(
+                      value: FontWeight.w700,
+                      child: Text('Bold'),
+                    ),
+                    DropdownMenuItem(
+                      value: FontWeight.w800,
+                      child: Text('Extra Bold'),
+                    ),
+                    DropdownMenuItem(
+                      value: FontWeight.w900,
+                      child: Text('Black'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setSheetState(() {
+                        weightVal = value;
+                      });
+                    }
+                  },
+                )
+                ],
               ),
 
               const SizedBox(height: 8),
@@ -1100,29 +1116,88 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_left, color: Colors.white),
-                    onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(-2, 0)),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_left,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      setSheetState(() {
+                        offsetVals = offsetVals + const Offset(-2, 0);
+                      });
+
+                      setState(() {
+                        manualPositionAdjustment[firstTextVal] = offsetVals;
+                      });
+                    },
                   ),
+
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
-                        onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(0, -2)),
+                        icon: const Icon(
+                          Icons.keyboard_arrow_up,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setSheetState(() {
+                            offsetVals = offsetVals + const Offset(0, -2);
+                          });
+
+                          setState(() {
+                            manualPositionAdjustment[firstTextVal] = offsetVals;
+                          });
+                        },
                       ),
+
                       IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-                        onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(0, 2)),
+                        icon: const Icon(
+                          Icons.keyboard_arrow_down,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setSheetState(() {
+                            offsetVals = offsetVals + const Offset(0, 2);
+                          });
+
+                          setState(() {
+                            manualPositionAdjustment[firstTextVal] = offsetVals;
+                          });
+                        },
                       ),
                     ],
                   ),
+
                   IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_right, color: Colors.white),
-                    onPressed: () => setSheetState(() => offsetVals = offsetVals + const Offset(2, 0)),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_right,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      setSheetState(() {
+                        offsetVals = offsetVals + const Offset(2, 0);
+                      });
+
+                      setState(() {
+                        manualPositionAdjustment[firstTextVal] = offsetVals;
+                      });
+                    },
                   ),
+
                   TextButton(
-                    onPressed: () => setSheetState(() => offsetVals = Offset.zero),
-                    child: const Text('Reset', style: TextStyle(color: Colors.white54)),
+                    onPressed: () {
+                      setSheetState(() {
+                        offsetVals = Offset.zero;
+                      });
+
+                      setState(() {
+                        manualPositionAdjustment[firstTextVal] = Offset.zero;
+                      });
+                    },
+                    child: const Text(
+                      'Reset',
+                      style: TextStyle(color: Colors.white54),
+                    ),
                   ),
                 ],
               ),
@@ -1145,7 +1220,6 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
                         }
                         manualFontAdjustment[firstTextVal] = fontSizeVal;
                         manualWeightAdjustment[firstTextVal] = weightVal;
-                        manualColorAdjustment[firstTextVal] = colorVal;
                         manualPositionAdjustment[firstTextVal] = offsetVals;
                       });
                       
