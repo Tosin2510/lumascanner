@@ -163,13 +163,10 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
           }
         }
 
-        if (value.right < rightStop) {
-          value = Rect.fromLTRB(value.left, value.top, rightStop, value.bottom);
-        }
  
-      covers.add(
+        covers.add(
         Positioned.fromRect(
-          rect: value.inflate(1.5),
+          rect: Rect.fromLTRB(value.left - 1.5, value.top, value.right + 1.5, value.bottom),
           child: Container(color: background),
         ),
       );
@@ -993,6 +990,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
 }
 
   void openEditTextPart(Rect display, double scaleX, double scaleY, int pageIndex,) {
+
     if (highlightedWords.isEmpty) return;
     final controller = TextEditingController(text: fixSelectedCurrencySign(highlightedText));
     final firstTextVal = highlightedWords.first;
@@ -1004,12 +1002,10 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       firstTextVal.boundingBox.height * scaleY,
     );
 
-    double fontSizeVal = manualFontAdjustment[firstTextVal] ?? similarFontSizeWithOriginalText(
-      firstTextVal,
-      wordRect,
-      scaleX,
-      scaleY,
-    );
+    double fontSizeVal = manualFontAdjustment[firstTextVal] ?? similarFontSizeWithOriginalText(firstTextVal, wordRect, scaleX, scaleY,);
+
+    final sliderMinimum = (fontSizeVal * 0.3).clamp(1.0, 6.0);
+    final sliderMaximum = (fontSizeVal * 4).clamp(72.0, 300.0);
     
     FontWeight weightVal = manualWeightAdjustment[firstTextVal] ?? (boldOfWord[firstTextVal] == true ? FontWeight.w700 : FontWeight.w400);
     Offset offsetVals = manualPositionAdjustment[firstTextVal] ?? Offset.zero; 
@@ -1078,9 +1074,9 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
                 child: Text('Font size', style: TextStyle(color: Colors.white70, fontSize: 12)),
               ),
               Slider(
-                value: fontSizeVal,
-                min: 6,
-                max: 72,
+                value: fontSizeVal.clamp(sliderMinimum, sliderMaximum),
+                min: sliderMinimum,
+                max: sliderMaximum,
                 activeColor: const Color(0xFF4A9EFF),
                 onChanged: (newVal) => setSheetState(() => fontSizeVal = newVal),
               ),
@@ -1088,7 +1084,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Bold', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  const Text('FontWeight', style: TextStyle(color: Colors.white70, fontSize: 12)),
                   DropdownButton<FontWeight>(
                   value: weightVal,
                   items: const [
