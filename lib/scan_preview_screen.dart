@@ -188,16 +188,10 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
           ),
           
           Container(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D1118),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF4A9EFF).withValues(alpha: 0.2)),
-            ),
-
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            color: const Color(0xFF0D1118),
             child: Row(
-               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 ActionIconButton(
                   icon: Icons.crop_rounded,
@@ -210,9 +204,9 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
                     label: 'Reorder',
                     onTap: reorderPart,
                   ),
-              ]
-            )
-           ),
+              ],
+            ),
+          ),
 
           if (showThumbnail)... [
             Padding(

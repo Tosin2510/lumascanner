@@ -226,42 +226,33 @@ class _CropScreenState extends State<CropScreen> {
           ),
         ]
       ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0D1118),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF4A9EFF).withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ActionIconButton(
-                icon: Icons.rotate_left_rounded,
-                label: 'Left',
-                onTap: () => rotateImage(270),
-              ),
-              ActionIconButton(
-                icon: Icons.rotate_right_rounded,
-                label: 'Right',
-                onTap: () => rotateImage(90),
-              ),
-
-              ActionIconButton(
-                icon: Icons.document_scanner_outlined,
-                label: 'Automatic',
-                onTap: autoCrop,
-              ),
-  
-              ActionIconButton(
-                icon: Icons.crop_free_rounded,
-                label: 'All',
-                onTap: selectAll,
-              ),
-            ],
-          ),
+      
+      bottomNavigationBar: BottomAppBar(
+        color: const Color(0xFF0D1118),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            ActionIconButton(
+              icon: Icons.rotate_left_rounded,
+              label: 'Left',
+              onTap: () => rotateImage(270),
+            ),
+            ActionIconButton(
+              icon: Icons.rotate_right_rounded,
+              label: 'Right',
+              onTap: () => rotateImage(90),
+            ),
+            ActionIconButton(
+              icon: Icons.document_scanner_outlined,
+              label: 'Automatic',
+              onTap: autoCrop,
+            ),
+            ActionIconButton(
+              icon: Icons.crop_free_rounded,
+              label: 'All',
+              onTap: selectAll,
+            ),
+          ],
         ),
       ),
 

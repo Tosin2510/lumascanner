@@ -14,14 +14,10 @@ class ActionIconButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool isActive;
 
-  @override
+    @override
   Widget build(BuildContext context) {
     final tapAllowed = onTap != null;
-    final iconColor = !tapAllowed
-        ? Colors.white24
-        : isActive
-            ? const Color(0xFF4A9EFF)
-            : Colors.white;
+    final iconColor = !tapAllowed ? Colors.white24 : isActive ? const Color(0xFF4A9EFF) : Colors.white;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -36,17 +32,13 @@ class ActionIconButton extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: !tapAllowed
-                    ? Colors.white24
-                    : isActive
-                        ? const Color(0xFF4A9EFF)
-                        : Colors.white70,
+                color: !tapAllowed ? Colors.white24: isActive? const Color(0xFF4A9EFF) : Colors.white70,
                 fontSize: 11,
               ),
             ),
-          ],
-        ),
-      ),
+          ]
+        )
+      )
     );
   }
 }

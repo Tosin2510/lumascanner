@@ -4,11 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as image;
 import 'package:image_picker/image_picker.dart';
+import 'package:lumascanner/action_icon_button.dart';
 import 'package:lumascanner/camera_screen.dart';
 import 'package:lumascanner/extracted_text_screen.dart';
 import 'package:lumascanner/services/export_service.dart';
 import 'package:lumascanner/services/image_enhancement_service.dart';
 import 'package:lumascanner/services/ocr_service.dart';
+import 'package:lumascanner/services/pdf_service.dart';
 import 'package:path/path.dart' as path;
 
 class PdfViewScreen extends StatefulWidget {
@@ -37,6 +39,8 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   List<Size?> pixelSizePerPage = [];
   final Map<TextElement, String> updatedText = {};
 
+  late List<XFile> pages;
+
   int? activePageIndex;
 
   Offset? dragCurrent;
@@ -59,6 +63,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
     super.initState();
     currentpathOfPdf = widget.pdfPath;
     currentNameOfPdf = path.basenameWithoutExtension(currentpathOfPdf);
+    pages = List.from(widget.pages);
     loadAllPages();
   }
 
@@ -235,7 +240,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
     final sizesVal = <Size?>[];
     final wordsVal = <List<TextElement>>[];
 
-    for (final page in widget.pages) {
+   for (final page in pages.skip(pixelSizePerPage.length)) {
       final byteVal = await File(page.path).readAsBytes();
       final decodedImage = image.decodeImage(byteVal)!;
 
@@ -262,8 +267,8 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
 
     if (!mounted) return;
     setState(() {
-      pixelSizePerPage = sizesVal;
-      wordsPerPage = wordsVal;
+      pixelSizePerPage = [...pixelSizePerPage, ...sizesVal];
+      wordsPerPage = [...wordsPerPage, ...wordsVal];
       isLoadingPages = false;
     });
   }
@@ -641,17 +646,38 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       if (value != null && value.isNotEmpty) {
         newPickedImages = value;
       }
+    }
 
-      if (!mounted || newPickedImages == null) return;
+    if (!mounted || newPickedImages == null) return;
 
-      final enhancedAddedPages = <XFile>[];
-      for (final page in newPickedImages) {
-        final enhancedImagePath = await enhancementService.autoEnhance(page.path);
-        enhancedAddedPages.add(XFile(enhancedImagePath));
-      }
+    setState(() => isLoadingPages = true);
 
+    final enhancedAddedPages = <XFile>[];
+    for (final page in newPickedImages) {
+      final enhancedImagePath = await enhancementService.autoEnhance(page.path);
+      enhancedAddedPages.add(XFile(enhancedImagePath));
+    }
+
+    if (!mounted) return;
+    pages.addAll(enhancedAddedPages);
+    await loadAllPages();
+    await updatePdfWithAllPages();
+  }
+
+  Future<void> updatePdfWithAllPages() async {
+    try {
+      final newPdfPath = await PdfService().createdPdf(pages);
+      final nameToKeep = path.join(path.dirname(newPdfPath), '$currentNameOfPdf.pdf');
+      final updatedFile = newPdfPath == nameToKeep
+          ? File(newPdfPath)
+          : await File(newPdfPath).rename(nameToKeep);
       if (!mounted) return;
-      editPages(extraPages: enhancedAddedPages);
+      setState(() => currentpathOfPdf = updatedFile.path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pages added, but the PDF file could not be updated')),
+      );
     }
   }
 
@@ -688,7 +714,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
 
 
   void editPages({List<XFile>? extraPages}) {
-    final completePages = [...widget.pages, ...?extraPages];
+    final completePages = [...pages, ...?extraPages];
     Navigator.pop(context, completePages);
   }
 
@@ -775,7 +801,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
                 children: [
                   Positioned.fill(
                     child: Image.file(
-                      File(widget.pages[pageIndex].path),
+                      File(pages[pageIndex].path),
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -901,7 +927,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       
       body: isLoadingPages ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : ListView.builder(
-              itemCount: widget.pages.length,
+              itemCount: pages.length,
               itemBuilder: (context, index) => buildItemInPage(index),
             ),
       
@@ -910,26 +936,26 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconButton(
-              icon: const Icon(Icons.share, color: Colors.white),
-              tooltip: 'Share',
-              onPressed: () => exportService.shareDocument(currentpathOfPdf),
+            ActionIconButton(
+              icon: Icons.share,
+              label: 'Share',
+              onTap: () => exportService.shareDocument(currentpathOfPdf),
             ),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-              tooltip: 'Add Page',
-              onPressed: () => addExtraPages(),
+            ActionIconButton(
+              icon: Icons.add_circle_outline,
+              label: 'Add page',
+              onTap: () => addExtraPages(),
             ),
-            IconButton(
-              icon: const Icon(Icons.edit_note, color: Colors.white),
-              tooltip: 'Edit',
-              onPressed: () => editPages(),
+            ActionIconButton(
+              icon: Icons.edit_note,
+              label: 'Edit',
+              onTap: () => editPages(),
             ),
 
-            IconButton(
-              icon: const Icon(Icons.text_fields, color: Colors.white),
-              tooltip: 'Extract Text',
-              onPressed: extractText,
+            ActionIconButton(
+              icon: Icons.text_fields,
+              label: 'Extract',
+              onTap: extractText,
             ),
           ]
         )
@@ -947,7 +973,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   );
 
   final pageResults = <RecognizedText>[];
-  for (final page in widget.pages) {
+  for (final page in pages) {
     final result = await ocrService.processImage(page.path);
     pageResults.add(result);
   }
@@ -959,7 +985,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
     context,
     MaterialPageRoute(
       builder: (context) => ExtractedTextScreen(
-        pages: widget.pages,
+        pages: pages,
         pageResults: pageResults,
       ),
     ),
