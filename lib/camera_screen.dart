@@ -89,9 +89,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     if (DateTime.now().difference(luminanceCheck) < const Duration(seconds: 1)) return;
     luminanceCheck = DateTime.now();
 
-    final brightness = averageLuminance(image);
+    final brightnessLevel = averageLuminance(image);
 
-    final isDark = brightness < 60; 
+    final isDark = brightnessLevel < 60; 
     if (isDark != suggestLowLightSituation && mounted) {
       setState(() => suggestLowLightSituation = isDark && !isFlashLightOn);
     }
@@ -252,7 +252,7 @@ double averageLuminance(CameraImage image) {
                     children: [
                       Icon(Icons.flash_on, color: Color(0xFF4A9EFF), size: 16),
                       SizedBox(width: 6),
-                      Text('Light is low, tap to turn on flash.', style: TextStyle(color: Colors.white, fontSize: 12)),
+                      Text('Light is low, tap to turn on the flash.', style: TextStyle(color: Colors.white, fontSize: 12)),
                     ],
                   ),
                 ),

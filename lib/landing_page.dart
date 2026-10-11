@@ -77,8 +77,8 @@ class _LandingPage extends State<LandingPage> with SingleTickerProviderStateMixi
                   
                   options(
                     icon: Icons.folder_open_rounded,
-                    title: 'View scanned documents',
-                    subtitle: 'Open the documents you saved',
+                    title: 'View the scanned documents',
+                    subtitle: 'Open the scanned documents you have saved',
                     onTap: () {
                       // To be implemented.
                     },
@@ -124,17 +124,17 @@ class _LandingPage extends State<LandingPage> with SingleTickerProviderStateMixi
   }
 
   bool isLetterBlue(int position, double progressPart) {
-    final lastLetter = appTextName.length - 1;
+    final finalLetter = appTextName.length - 1;
 
     if (progressPart < 0.1) return false;
 
     if (progressPart < 0.5) {
-      final value = (((progressPart - 0.1) / 0.4) * appTextName.length).floor().clamp(0, lastLetter);
+      final value = (((progressPart - 0.1) / 0.4) * appTextName.length).floor().clamp(0, finalLetter);
       return (position - value).abs() <= 1;
     }
 
     if (progressPart < 0.95) {
-      final spot = lastLetter - (((progressPart - 0.5) / 0.45) * appTextName.length).floor().clamp(0, lastLetter);
+      final spot = finalLetter - (((progressPart - 0.5) / 0.45) * appTextName.length).floor().clamp(0, finalLetter);
       return position >= spot - 1;
     }
 

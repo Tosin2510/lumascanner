@@ -16,8 +16,8 @@ class ActionIconButton extends StatelessWidget {
 
     @override
   Widget build(BuildContext context) {
-    final tapAllowed = onTap != null;
-    final iconColor = !tapAllowed ? Colors.white24 : isActive ? const Color(0xFF4A9EFF) : Colors.white;
+    final istapAllowed = onTap != null;
+    final iconColor = !istapAllowed ? Colors.white24 : isActive ? const Color(0xFF4A9EFF) : Colors.white;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -32,7 +32,7 @@ class ActionIconButton extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: !tapAllowed ? Colors.white24: isActive? const Color(0xFF4A9EFF) : Colors.white70,
+                color: !istapAllowed ? Colors.white24: isActive? const Color(0xFF4A9EFF) : Colors.white70,
                 fontSize: 11,
               ),
             ),

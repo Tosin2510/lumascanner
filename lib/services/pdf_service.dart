@@ -8,19 +8,17 @@ import 'package:image/image.dart' as img;
 
 class PdfService {
   Future<String> createdPdf(List<XFile> images) async {
-    final pdf = widg.Document();
+    final pdfPage = widg.Document();
     for (final singleImage in images) {
       final imageByte = await File(singleImage.path).readAsBytes();
       final decodeImage = img.decodeImage(imageByte)!;
       final imageval = widg.MemoryImage(imageByte);
-      final format = PdfPageFormat(
-        decodeImage.width.toDouble(),
-        decodeImage.height.toDouble(),
+      final formatImage = PdfPageFormat(decodeImage.width.toDouble(), decodeImage.height.toDouble(),
       );
 
-      pdf.addPage(
+      pdfPage.addPage(
         widg.Page(
-          pageFormat: format,
+          pageFormat: formatImage,
           margin: widg.EdgeInsets.zero,
           build: (context) {
             return widg.Center(
@@ -40,7 +38,7 @@ class PdfService {
     }
     final name = 'pdfdocument${DateTime.now().millisecondsSinceEpoch}.pdf';
     final pdfPath = path.join(pdfDocsDir.path, name);
-    await File(pdfPath).writeAsBytes(await pdf.save());
+    await File(pdfPath).writeAsBytes(await pdfPage.save());
     return pdfPath;
   }
 }

@@ -22,24 +22,24 @@ String separateEnhancementFeature(String pathToImage) {
     originalimageVal = image.copyResize(originalimageVal, height: maxSide);
   }
 
-  final brightnessCount = List<int>.filled(256, 0);
+  final brightness = List<int>.filled(256, 0);
   for (final value in originalimageVal) {
-    brightnessCount[image.getLuminance(value).round().clamp(0, 255)]++;
+    brightness[image.getLuminance(value).round().clamp(0, 255)]++;
   }
   final total = originalimageVal.width * originalimageVal.height;
   var valCount = 0;
-  var white = 255;
-  for (var i = 0; i < 256; i++) {
-    valCount += brightnessCount[i];
+  var whiteCol = 255;
+  for (var  val = 0; val < 256; val++) {
+    valCount += brightness[val];
     if (valCount >= total * 0.99) {
-      white = i;
+      whiteCol = val;
       break;
     }
   }
 
-  if (white >= 235 || white < 120) return pathToImage;
+  if (whiteCol >= 235 || whiteCol < 120) return pathToImage;
 
-  final scale = 255 / white;
+  final scale = 255 / whiteCol;
   for (final value in originalimageVal) {
     value.r = (value.r * scale).clamp(0, 255);
     value.g = (value.g * scale).clamp(0, 255);
