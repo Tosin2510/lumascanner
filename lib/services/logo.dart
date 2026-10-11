@@ -18,8 +18,8 @@ class _Logo extends State<Logo> with SingleTickerProviderStateMixin {
       super.initState();
       midlineMovement = AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 4200),
-      )..repeat();
+        duration: const Duration(milliseconds: 3000),
+      )..forward();
 
       height = TweenSequence<double>([
 
@@ -34,10 +34,6 @@ class _Logo extends State<Logo> with SingleTickerProviderStateMixin {
       TweenSequenceItem(
         tween: Tween<double>(begin: 24, end: 49).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 25,
-      ),
-      TweenSequenceItem(
-        tween: ConstantTween<double>(49),
-        weight: 10,
       ),
     ]).animate(midlineMovement);
 
@@ -102,8 +98,8 @@ class _Logo extends State<Logo> with SingleTickerProviderStateMixin {
 
 
     final bluepaintVal = Paint();
-     bluepaintVal.color = const Color(0xFF0D1118);
-      bluepaintVal.style = PaintingStyle.stroke;
+     bluepaintVal.color = const Color(0xFF4A9EFF);
+     bluepaintVal.style = PaintingStyle.stroke;
       bluepaintVal.strokeWidth = 4;
       bluepaintVal.strokeCap = StrokeCap.round;
       bluepaintVal.strokeJoin = StrokeJoin.round;
@@ -135,11 +131,12 @@ class _Logo extends State<Logo> with SingleTickerProviderStateMixin {
       foldCorner.lineTo(72, 29);
 
     canvas.drawPath(foldCorner, bluepaintVal);
+    canvas.drawPath(linePart, bluepaintVal);
 
   }
 
-  @override
-  shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+   @override
+  bool shouldRepaint(covariant LogoPaint oldDelegate) {
+    return oldDelegate.position != position;
   }
 }
