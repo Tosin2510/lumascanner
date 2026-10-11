@@ -1,11 +1,10 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:lumascanner/camera_screen.dart';
+import 'package:lumascanner/landing_page.dart';
 
 List<CameraDescription> cameras = [];
 Future<void> main() async {
   try {
-    // This part ensures that the camera is initialized before the app starts.
     WidgetsFlutterBinding.ensureInitialized();
     // Checks for available cameras, i only need the back camera in this case.
     cameras = await availableCameras();
@@ -22,12 +21,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LumaScanner',
-      home: const CameraScreen(),
+      home: const LandingPage(),
     );
   }
 }
 
-// This functions is used to log the errors that are related to the camera.
 void logError(String code, String? message) {
   debugPrint('Error: $code${message == null ? '' : '\nError Message: $message'}');
 }
