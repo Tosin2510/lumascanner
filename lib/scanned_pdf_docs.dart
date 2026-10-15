@@ -328,7 +328,7 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
                 },
               ),
               ActionIconButton(
-                icon: Icons.delete_outline,
+                icon: Icons.merge_type,
                 label: 'Merge',
                 onTap: pathToSelectedDocs.length >= 2 ? mergeSelectedDocs : null,
             ),
