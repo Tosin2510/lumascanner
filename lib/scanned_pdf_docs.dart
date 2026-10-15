@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:lumascanner/action_icon_button.dart';
+import 'package:lumascanner/pdf_view_screen.dart';
 import 'package:lumascanner/services/export_service.dart';
 import 'package:lumascanner/services/pdf_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:pdfx/pdfx.dart' as pdfx;
+import 'package:share_plus/share_plus.dart';
 
 class ScannedDocument {
   final String pathToPdf;
@@ -42,6 +44,9 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
  
   bool isBusy = false;
 
+  bool showAllDocuments = false;
+  int noOfDocsToShowFirst = 10;
+
   @override
   void initState() {
     super.initState();
@@ -49,10 +54,17 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
   }
 
   Future<Directory> getPdfsFromPlaceWhereSaved() async {
-    return await getApplicationDocumentsDirectory();
+  final appDir = await getApplicationDocumentsDirectory();
+  final pdfDocsDir = Directory(path.join(appDir.path, 'Documents'));
+
+  if (!await pdfDocsDir.exists()) {
+    await pdfDocsDir.create(recursive: true);
   }
 
- Future<void> loadPdfDocumentsFromSavedDirectory() async {
+  return pdfDocsDir;
+}
+
+Future<void> loadPdfDocumentsFromSavedDirectory() async {
   final pdfDirectory = await getPdfsFromPlaceWhereSaved();
   final pdfFilesInDirectory = pdfDirectory.listSync();
   final documents = <ScannedDocument>[];
@@ -76,12 +88,90 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
     }
   }
 
+  documents.sort((first, second) => second.dateCreatedOrEdited.compareTo(first.dateCreatedOrEdited));
+
   if (!mounted) return;
   setState(() {
     docs = documents;
     isLoading = false;
   });
+  await loadThumbnailForPdfDocs();
  }
+
+Future<void> openPdfDocument(ScannedDocument doc) async {
+  setState(() {
+    isBusy = true;
+  });
+
+  try {
+    
+    final pdfFile = await pdfx.PdfDocument.openFile(doc.pathToPdf);
+    final pages = <XFile>[];
+
+    for (int pageNumber = 1; pageNumber <= pdfFile.pagesCount; pageNumber++) {
+      final page = await pdfFile.getPage(pageNumber);
+
+      final pageImage = await page.render(
+        width: page.width,
+        height: page.height,
+        format: pdfx.PdfPageImageFormat.png,
+      );
+      
+      await page.close();
+
+      if (pageImage != null) {
+        final temporaryDir = await getTemporaryDirectory();
+        final imagePath = path.join(
+          temporaryDir.path,
+          '${path.basenameWithoutExtension(doc.pathToPdf)}page$pageNumber.png',
+        );
+
+        await File(imagePath).writeAsBytes(pageImage.bytes);
+        pages.add(XFile(imagePath));
+      }
+
+    }
+
+    await pdfFile.close();
+    if (!mounted) return;
+
+    setState(() {
+      isBusy = false;
+    });
+
+    if (pages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not load the pdf pages.'),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PdfViewScreen(
+          pdfPath: doc.pathToPdf,
+          pages: pages,
+        ),
+      ),
+    );
+
+    await loadPdfDocumentsFromSavedDirectory();
+  } catch (e) {
+    if (!mounted) return;
+    setState(() {
+      isBusy = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not open the document.'),
+      ),
+    );
+  }
+}
+
 
  @override
  Widget build(BuildContext context) {
@@ -129,31 +219,67 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
                   if (docs.isEmpty) {
                     return const Center(
                       child: Text(
-                        'No scanned documents found, go to landing page to start scanning.',
+                        'No scanned documents found.',
                         style: TextStyle(color: Colors.white),
                       ),
                     );
                   }
 
-                  return ListView.builder(
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final doc = docs[index];
-                      final isSelected = pathToSelectedDocs.contains(doc.pathToPdf);
+                  final docsToShow = showAllDocuments ? docs : docs.take(noOfDocsToShowFirst).toList();
+                  final moreDocsExists = docs.length > noOfDocsToShowFirst;
 
+                  return ListView.builder(
+                    itemCount: docsToShow.length + (moreDocsExists ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == docsToShow.length) {
+                        return TextButton(
+                          onPressed: () {
+                            setState(() {
+                              showAllDocuments = !showAllDocuments;
+                            });
+                          },
+                          child: Text(
+                            showAllDocuments ? 'Show less' : 'View all ${docs.length} documents',
+                            style: const TextStyle(color: Color(0xFF4A9EFF)),
+                          ),
+                        );
+                      }
+
+                      final doc = docsToShow[index];
+                      final isSelected = pathToSelectedDocs.contains(doc.pathToPdf);
                       return ListTile(
                         tileColor: isSelected ? const Color(0xFF0D1118) : Colors.transparent,
+                        leading: doc.thumbnailImage == null ? const Icon(Icons.picture_as_pdf_outlined, color: Colors.white38, size: 40)
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.memory(
+                                  doc.thumbnailImage!,
+                                  width: 44,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                         title: Text(doc.fileName, style: const TextStyle(color: Colors.white)),
                         subtitle: Text(
-                          doc.dateCreatedOrEdited.toString(),
+                          doc.noOfPages == 0 ? dateValAasText(doc.dateCreatedOrEdited) : '${doc.noOfPages} pages • ${dateValAasText(doc.dateCreatedOrEdited)}',
                           style: const TextStyle(color: Colors.white54),
                         ),
-                        trailing: isSelecting
-                            ? Icon(
-                                isSelected ? Icons.check_circle : Icons.circle_outlined,
-                                color: isSelected ? const Color(0xFF4A9EFF) : Colors.white38,
-                              )
-                            : null,
+
+                        trailing: IconButton(
+                          icon: Icon(
+                            isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                            color: isSelected ? const Color(0xFF4A9EFF) : Colors.white38,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              if (isSelected) {
+                                pathToSelectedDocs.remove(doc.pathToPdf);
+                              } else {
+                                pathToSelectedDocs.add(doc.pathToPdf);
+                              }
+                            });
+                          }
+                        ),
                         onTap: () {
                           if (isSelecting) {
                             setState(() {
@@ -163,8 +289,11 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
                                 pathToSelectedDocs.add(doc.pathToPdf);
                               }
                             });
+                          } else {
+                            openPdfDocument(doc);
                           }
                         },
+                        
                         onLongPress: () {
                           setState(() {
                             if (isSelected) {
@@ -172,27 +301,17 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
                             } else {
                               pathToSelectedDocs.add(doc.pathToPdf);
                             }
-                          });
+                          }); 
                         },
                       );
-                    },
-                  );
                 },
-              ),
-            ),
-            if (isBusy)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black54,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-              )
-            )
+              );
+            })
+          ),
           ],
         ),
 
-        bottomNavigationBar: BottomAppBar(
+        bottomNavigationBar: isSelecting ? BottomAppBar(
           color:const Color(0xFF0D1118),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -208,6 +327,12 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
                   }
                 },
               ),
+
+            ActionIconButton(
+              icon: Icons.delete_outline,
+              label: 'Delete',
+              onTap: isSelecting ? deleteSelectedDocs : null,
+            ),
              
             ActionIconButton(
               icon: Icons.drive_file_rename_outline,
@@ -216,9 +341,57 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
             ),
           ],
           ),
-        )
+        ) : null  
       );
  }
+ 
+ Future<void> deleteSelectedDocs() async {
+  final noOfDocsToDel = pathToSelectedDocs.length;
+
+  final confirmedDel = await showDialog(
+    context: context, 
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: const Color(0xFF0D1118),
+        title: Text(
+          noOfDocsToDel == 1 ? 'Delete this document?' : 'Delete $noOfDocsToDel?',
+          style: const TextStyle(color: Colors.white)
+        ),
+        content: Text(
+          'This action cannot be undone',
+          style: const TextStyle(color: Colors.white54)
+        ),
+        actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+            ),
+        ] 
+      );
+    }
+  );
+
+  if (confirmedDel != true) return;
+  for (final pathToDoc in pathToSelectedDocs) {
+    final file = File(pathToDoc);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  setState(() {
+    pathToSelectedDocs = [];
+  });
+  loadPdfDocumentsFromSavedDirectory();
+}
 
  Future<void> renameSelectedDocs() async {
   final pathToDoc = pathToSelectedDocs.first;
@@ -256,6 +429,83 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
       );
     }
   );
+
   if (newName == null || newName.isEmpty) return;
+  if (!mounted) return;
+  var replacedName =newName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+  if (replacedName.toLowerCase().endsWith('.pdf')) {
+    replacedName = replacedName.substring(0, replacedName.length - 4);
+  }
+
+  final newPath = path.join(path.dirname(pathToDoc), '$replacedName.pdf');
+  if (newPath == pathToDoc) return;
+
+  if (File(newPath).existsSync()) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('A document with this name already exists.'))
+    );
+    return;
+  }
+
+  
+  try {
+  await File(pathToDoc).rename(newPath);
+
+  setState(() {
+    pathToSelectedDocs = [];
+  });
+
+  await loadPdfDocumentsFromSavedDirectory();
+
+} catch (e) {
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Could not rename document.'),
+    ),
+  );
+}
  }
+
+ String digit(int numb) {
+  return numb.toString().padLeft(2, '0');
+ }
+
+ String dateValAasText(DateTime date) {
+  return '${digit(date.day)}-${digit(date.month)}-${date.year} ${digit(date.hour)}:${digit(date.minute)}';
+ }
+
+Future<void> loadThumbnailForPdfDocs() async {
+  for (final doc in docs) {
+    if (doc.thumbnailImage != null) continue;
+
+    try {
+      final pdfFile = await pdfx.PdfDocument.openFile(doc.pathToPdf);
+
+      final firstPage = await pdfFile.getPage(1);
+
+      final pageImage = await firstPage.render(
+        width: firstPage.width * 0.4,
+        height: firstPage.height * 0.4,
+        format: pdfx.PdfPageImageFormat.jpeg,
+        backgroundColor: '#FFFFFF',
+      );
+
+      await firstPage.close();
+
+      final pageNumbers = pdfFile.pagesCount;
+
+      await pdfFile.close();
+
+      if (!mounted) return;
+
+      setState(() {
+        doc.thumbnailImage = pageImage?.bytes;
+        doc.noOfPages = pageNumbers;
+      });
+    } catch (e) {
+      debugPrint('Error reading document: $e');
+    }
+  }
+}
 }
