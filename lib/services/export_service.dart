@@ -9,4 +9,20 @@ class ExportService {
       )
     );
   }
+
+  Future<void> shareManyDocuments(List<String> pathToPdfDocs) async {
+    if (pathToPdfDocs.isEmpty) return;
+
+    final filesIntendedForSharing = <XFile>[];
+    for (final path in pathToPdfDocs) {
+      filesIntendedForSharing.add(XFile(path));
+    }
+
+    await SharePlus.instance.share(
+      ShareParams(
+        files: filesIntendedForSharing,
+        text: 'Share PDF Documents',
+      )
+    );
+  }
 }
