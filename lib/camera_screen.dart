@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:lumascanner/action_icon_button.dart';
 import 'package:lumascanner/services/image_picker_service.dart';
 import 'package:lumascanner/scan_preview_screen.dart';
 import 'package:lumascanner/services/camera_service.dart';
@@ -73,7 +74,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.4),
+        color: const Color(0xFF0D1118),
         shape: BoxShape.circle,
       ),
       child: IconButton(
@@ -162,6 +163,7 @@ double averageLuminance(CameraImage image) {
   Widget build(BuildContext context) {
     if (cameraPermissionDenied) {
       return const Scaffold(
+        backgroundColor: Colors.black,
         body: Center(
           child: Text('Camera permission denied or unavailable.')
         )
@@ -169,8 +171,9 @@ double averageLuminance(CameraImage image) {
     }
     if (!isReady) {
       return Scaffold(
+        backgroundColor: Colors.black,
         body: Center(
-          child: CircularProgressIndicator()
+          child: CircularProgressIndicator(color: Colors.white)
         )
       );
     }
@@ -209,27 +212,33 @@ double averageLuminance(CameraImage image) {
           ),
 
           Positioned(
-            bottom: 24,
+            bottom: 0,
             left: 0,
             right: 0,
-            child: SafeArea(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 24),
-                    child: importButton(),
-                  ),
-                  captureButton(),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 20),
-                    child: reviewButton(),
-                  )
-                ]
+            child: Container(
+              color: const Color(0xFF0D1118),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 24),
+                      child: importButton(),
+                    ),
+                    captureButton(),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: reviewButton(),
+                    )
+                  ]
+                ),
               ),
             ),
           ),
+          
           if (suggestLowLightSituation)
           Positioned(
             top: 70,
@@ -245,7 +254,7 @@ double averageLuminance(CameraImage image) {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0D1118),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -265,28 +274,10 @@ double averageLuminance(CameraImage image) {
   }
 
   Widget importButton() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white, width: 1.5)
-          ),
-          child: IconButton(
-            onPressed: pickImagesFromGallery, 
-            icon: const Icon(
-              Icons.photo_library_outlined,
-              color: Colors.white,
-              size: 20,
-            )
-          )
-        ),
-        const SizedBox(height: 4,),
-        const Text('Import', style: TextStyle(color: Colors.white, fontSize: 12))
-      ]
+    return ActionIconButton(
+      icon: Icons.photo_library_outlined,
+      label: 'Import',
+      onTap: pickImagesFromGallery,
     );
   }
 
@@ -309,8 +300,7 @@ double averageLuminance(CameraImage image) {
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.black, width: 2.5)              
-            )
+              border: Border.all(color: const Color(0xFF0D1118), width: 2.5)            )
           )
         )
       )
@@ -369,9 +359,8 @@ double averageLuminance(CameraImage image) {
         Text(
           'Preview',
           style: TextStyle(
-            color: hasPages ? const Color(0xFF4A9EFF) : Colors.white38,
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
+            color: hasPages ? Colors.white70 : Colors.white24,
+            fontSize: 11,
           )
         )
       ],
