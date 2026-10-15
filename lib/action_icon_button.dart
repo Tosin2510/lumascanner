@@ -14,30 +14,36 @@ class ActionIconButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool isActive;
 
-    @override
+   @override
   Widget build(BuildContext context) {
     final istapAllowed = onTap != null;
     final iconColor = !istapAllowed ? Colors.white24 : isActive ? const Color(0xFF4A9EFF) : Colors.white;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: iconColor, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: !istapAllowed ? Colors.white24: isActive? const Color(0xFF4A9EFF) : Colors.white70,
-                fontSize: 11,
-              ),
-            ),
-          ]
-        )
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+         splashFactory: InkRipple.splashFactory,
+          splashColor: const Color(0xFF4A9EFF).withValues(alpha: 0.3),
+          highlightColor: const Color(0xFF4A9EFF).withValues(alpha: 0.12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: iconColor, size: 24),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: !istapAllowed ? Colors.white24: isActive? const Color(0xFF4A9EFF) : Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+              ]
+            )
+          )
       )
     );
   }
