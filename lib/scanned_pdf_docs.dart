@@ -327,6 +327,11 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
                   }
                 },
               ),
+              ActionIconButton(
+                icon: Icons.delete_outline,
+                label: 'Merge',
+                onTap: pathToSelectedDocs.length >= 2 ? mergeSelectedDocs : null,
+            ),
 
             ActionIconButton(
               icon: Icons.delete_outline,
@@ -343,6 +348,80 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
           ),
         ) : null  
       );
+ }
+
+ Future<void> mergeSelectedDocs() async {
+  if (pathToSelectedDocs.length < 2) return;
+
+  setState(() {
+    isBusy = true;
+  });
+
+  try {
+    final allPages = <XFile>[];
+    final temporaryDir = await getTemporaryDirectory();
+
+    for (final pathToDoc in pathToSelectedDocs) {
+      final pdfFile = await pdfx.PdfDocument.openFile(pathToDoc);
+
+      for (int pageNo = 1; pageNo <= pdfFile.pagesCount; pageNo++) {
+        final page = await pdfFile.getPage(pageNo);
+
+        final pageImage = await page.render(
+          width: page.width * 2,
+          height: page.height * 2,
+          format: pdfx.PdfPageImageFormat.jpeg,
+          backgroundColor: '#FFFFFF',
+        );
+
+        await page.close();
+
+        if (pageImage != null) {
+          final imagePath = path.join(
+            temporaryDir.path,
+            'merge${DateTime.now().microsecondsSinceEpoch}$pageNo.jpg',
+          );
+          await File(imagePath).writeAsBytes(pageImage.bytes);
+          allPages.add(XFile(imagePath));
+        }
+      }
+
+      await pdfFile.close();
+    }
+
+    final mergedPdfPath = await pdfService.createdPdf(allPages);
+
+    final pdfDirectory = await getPdfsFromPlaceWhereSaved();
+    final firstDocName = path.basenameWithoutExtension(pathToSelectedDocs.first);
+    var pathVal = path.join(pdfDirectory.path, '$firstDocName-merged.pdf');
+    int val = 1;
+
+    while (File(pathVal).existsSync()) {
+      pathVal = path.join(pdfDirectory.path, '$firstDocName merged($val).pdf');
+      val++;
+    }
+
+    await File(mergedPdfPath).copy(pathVal);
+    await File(mergedPdfPath).delete();
+
+    if (!mounted) return;
+    setState(() {
+      isBusy = false;
+      pathToSelectedDocs = [];
+    });
+
+    await loadPdfDocumentsFromSavedDirectory();
+  } catch (e) {
+    if (!mounted) return;
+    setState(() {
+      isBusy = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not merge the documents.'),
+      ),
+    );
+  }
  }
  
  Future<void> deleteSelectedDocs() async {
