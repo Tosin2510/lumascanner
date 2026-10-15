@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lumascanner/camera_screen.dart';
+import 'package:lumascanner/scanned_pdf_docs.dart';
 import 'package:lumascanner/services/logo.dart';
 
 class LandingPage extends StatefulWidget {
@@ -75,7 +76,12 @@ class _LandingPage extends State<LandingPage> {
                     title: 'View the scanned documents',
                     subtitle: 'Open the scanned documents you have saved',
                     onTap: () {
-                      // To be implemented.
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PdfDocsScreen(),
+                        )
+                    );
                     },
                   ),
                   const SizedBox(height: 24),
