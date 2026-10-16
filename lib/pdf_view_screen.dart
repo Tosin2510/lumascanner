@@ -727,9 +727,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
     try {
       final newPdfPath = await PdfService().createdPdf(pages);
       final nameToKeep = path.join(path.dirname(newPdfPath), '$currentNameOfPdf.pdf');
-      final updatedFile = newPdfPath == nameToKeep
-          ? File(newPdfPath)
-          : await File(newPdfPath).rename(nameToKeep);
+      final updatedFile = newPdfPath == nameToKeep ? File(newPdfPath) : await File(newPdfPath).rename(nameToKeep);
       if (!mounted) return;
       setState(() => currentpathOfPdf = updatedFile.path);
     } catch (e) {
@@ -796,7 +794,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       startIndex = null;
       stopIndex = null;
       activePageIndex = null;
-      
+
       updatedText.clear();
       manualFontAdjustment.clear();
       manualWeightAdjustment.clear();
