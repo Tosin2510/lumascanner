@@ -148,14 +148,15 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
       return;
     }
 
-    await Navigator.push(
+    await Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => PdfViewScreen(
-          pdfPath: doc.pathToPdf,
+          pathToPdf: doc.pathToPdf,
           pages: pages,
         ),
       ),
+      result: true,
     );
 
     await loadPdfDocumentsFromSavedDirectory();
