@@ -11,9 +11,12 @@ import 'package:lumascanner/services/pdf_service.dart';
 
 class ScanPreviewScreen extends StatefulWidget {
   final List<XFile> images;
+  final String? existingPdfPath;
+
   const ScanPreviewScreen({
     super.key,
     required this.images,
+    this.existingPdfPath,
   });
   @override
   State<ScanPreviewScreen> createState() => _ScanPreviewScreenState();
@@ -66,14 +69,26 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
   Future<void> pdfPart() async {
     final pathToPdf = await pdfService.createdPdf(pages);
     if (!mounted) return;
+    
+    if (widget.existingPdfPath != null) {
+      if (pathToPdf != widget.existingPdfPath) {
+        await File(pathToPdf).copy(widget.existingPdfPath!);
+        await File(pathToPdf).delete();
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, pages);
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => PdfViewScreen(
-          pdfPath: pathToPdf,
+          pathToPdf: pathToPdf,
           pages: pages,
-        ),
-      ),
+          ),
+      )
     );
   }
 
