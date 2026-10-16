@@ -1,4 +1,4 @@
-### LumaScanner
+# LumaScanner
 
 ## What it is?
 
@@ -8,19 +8,19 @@ Another thing i implemented is that the text on every page in the is read with O
 
 ## What the app can do?
 
-# Scanning
+### Scanning
 Take multiple images and import pictures of documents that needs to be scanned from the gallery at once, turn on the flash light if the room is too dark, auto-enhance the selected pages and carry out cropping and rotation. Also, reordering and deletion of selected pages
 
-# Inside a document
+### Inside a document
 The users can actually copy, edit, delete texts on a pdf page, extract the whole text of a document on one screen, the app also gives users room to add more pages later (from the camera or from the gallery) as well as edit the pages again after making the PDF. Users can also share and rename the document.
 
-# Scanned document page
+### Scanned document page
 Each of the scanned documents has a thumbnail of its page count and date created. Also, a view all which changes to a shpw less button depending on what we have for long lists of documents, selection of one or more documents for sharing, merging, deletion or renaming. I also added a progress indicator to show the process of merging the documents together.
 
-# How text editing works
+### How text editing works
 I made use of OCR since it gives every word and exactly where it is on a page. When a user edit a line, the app basically checks the colour around the words, paints that colour over that line/word then draw the edited text on top. The colour is the same as the original text, but the size and weight might change hence why I allowed users to manually adjust those. Also, OCR affects currency(something like expressing # as N), so, i added shortcut buttons in case the pdf document the user wants to edit the text has currency in it.
 
-# Permissions and Platform
+## Permissions and Platform
 Platform: Android
 Permissions Required: Camera access
 
@@ -38,16 +38,16 @@ document_scan
 flutter_launcher_icons
 google_mlkit_text_recognition
 
-# Download
+## Download
 Get the latest APK from the Releases page.
 Not sure which APK to pick? Choose app-arm64-v8a-release.apk. It works on almost all modern phones.
 
-# Installing (Android)
+## Installing (Android)
 Download the APK on your phone.
 Open it and allow installs from unknown sources if your phone asks.
 Open LumaScanner and allow camera access when requested.
 
-# Running from Source
+## Running from Source
 Install Flutter.
 Clone the repository and run flutter pub get.
 Run flutter run with a physical phone connected (the camera works best on a real phone and not on an emulator).
