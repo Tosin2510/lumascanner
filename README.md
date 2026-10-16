@@ -21,21 +21,20 @@ Each of the scanned documents has a thumbnail of its page count and date created
 I made use of OCR since it gives every word and exactly where it is on a page. When a user edit a line, the app basically checks the colour around the words, paints that colour over that line/word then draw the edited text on top. The colour is the same as the original text, but the size and weight might change hence why I allowed users to manually adjust those. Also, OCR affects currency(something like expressing # as N), so, i added shortcut buttons in case the pdf document the user wants to edit the text has currency in it.
 
 ## Permissions and Platform
-Platform: Android
-Permissions Required: Camera access
+Platform: Android, Permissions Required: Camera access
 
 ## Framework & Packages Used
 I built this with Flutter. Main packages:
-camera
-image_picker
-image
-pdf
-pdfx
-share_plus
-path
-path_provider
-document_scan
-flutter_launcher_icons
+camera,
+image_picker,
+image,
+pdf,
+pdfx,
+share_plus,
+path,
+path_provider,
+document_scan,
+flutter_launcher_icons,
 google_mlkit_text_recognition
 
 ## Download
