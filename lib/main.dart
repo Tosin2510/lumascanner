@@ -21,6 +21,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'LumaScanner',
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF4A9EFF),
+          surface: Color(0xFF0D1118),
+        ),
+        textSelectionTheme: const TextSelectionThemeData(
+          cursorColor: Color(0xFF4A9EFF),
+          selectionHandleColor: Color(0xFF4A9EFF),
+        ),
+      ),
       home: const LandingPage(),
     );
   }
