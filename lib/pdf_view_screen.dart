@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'package:lumascanner/scan_preview_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,6 +39,8 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   final Map<TextElement, Color> textColorOfWord = {};
   bool isLoadingPages = true;
   List<Size?> pixelSizePerPage = [];
+  List<bool> textPerPage = [];
+  int load = 0;
   final Map<TextElement, String> updatedText = {};
 
   late List<XFile> pages;
@@ -231,44 +234,102 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
 
   return covers..addAll(newTexts);
   }
- 
+
+  Future<List<int>> readImageSize(String pathToImage) async {
+    final byteVal = await File(pathToImage).readAsBytes();
+    return Isolate.run(() {
+      final decodedImage = image.decodeImage(byteVal)!;
+      return [decodedImage.width, decodedImage.height];
+    });
+  } 
+  
+  Future<image.Image> decodeImageWhenItIsInBackground(String imagePath) async {
+  final byteVal = await File(imagePath).readAsBytes();
+  return Isolate.run(() => image.decodeImage(byteVal)!);
+}
 
   Future<void> loadAllPages() async {
+    
+    load = load + 1;
+    final thisRun = load;
 
-    final sizesVal = <Size?>[];
-    final wordsVal = <List<TextElement>>[];
-
-   for (final page in pages.skip(pixelSizePerPage.length)) {
-      final byteVal = await File(page.path).readAsBytes();
-      final decodedImage = image.decodeImage(byteVal)!;
-
-      final recognizedImg = await ocrService.processImage(page.path);
-      final wordsForPage = <TextElement>[];
-      for (final block in recognizedImg.blocks) {
-        for (final line in block.lines) {
-          for (final element in line.elements) {
-            wordsForPage.add(element);
-            lineOfWord[element] = line;
-            backgroundOfWord[element] = originalTextBackground(decodedImage, element.boundingBox);
-            final colorOfInk = colorOfOriginalText(decodedImage, element.boundingBox, backgroundOfWord[element]!);
-            if (colorOfInk != null) {
-              textColorOfWord[element] = colorOfInk;
-            }
-            boldOfWord[element] = boldTextLook(decodedImage, element.boundingBox, backgroundOfWord[element]!);
-          }
-        }
-      }
-
-      sizesVal.add(Size(decodedImage.width.toDouble(), decodedImage.height.toDouble()));
-      wordsVal.add(wordsForPage);
+    final newPages = <XFile>[];
+    for (int index = pixelSizePerPage.length; index < pages.length; index++) {
+      newPages.add(pages[index]);
     }
 
-    if (!mounted) return;
+    final newSizes = <Size>[];
+    final newWords = <List<TextElement>>[];
+    final newTextReadFlags = <bool>[];
+
+  
+    for (final page in newPages) {
+      final sizeInfo = await readImageSize(page.path);
+      newSizes.add(Size(sizeInfo[0].toDouble(), sizeInfo[1].toDouble()));
+      newWords.add(<TextElement>[]);
+      newTextReadFlags.add(false);
+    }
+        
+    if (!mounted || thisRun != load) return;
+
     setState(() {
-      pixelSizePerPage = [...pixelSizePerPage, ...sizesVal];
-      wordsPerPage = [...wordsPerPage, ...wordsVal];
+      pixelSizePerPage = [...pixelSizePerPage, ...newSizes];
+      wordsPerPage = [...wordsPerPage, ...newWords];
+      textPerPage = [...textPerPage, ...newTextReadFlags];
       isLoadingPages = false;
     });
+
+   
+    readTextOfPages(thisRun);
+  }
+
+  Future<void> readTextOfPages(int thisRun) async {
+    for (int pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      if (!mounted || thisRun != load) return;
+
+      if (pageIndex >= textPerPage.length) continue;
+
+      if (textPerPage[pageIndex]) continue;
+
+      try {
+        final wordsForPage = await readWordsOfPage(pages[pageIndex]);
+
+        if (!mounted || thisRun != load) return;
+
+        setState(() {
+          wordsPerPage[pageIndex] = wordsForPage;
+          textPerPage[pageIndex] = true;
+        });
+      } catch (e) {
+        debugPrint('Reading text failed for page ${pageIndex + 1}: $e');
+      }
+    }
+  }
+
+  
+  Future<List<TextElement>> readWordsOfPage(XFile page) async {
+    final decodedImage = await decodeImageWhenItIsInBackground(page.path);
+    final recognizedImg = await ocrService.processImage(page.path);
+    final wordsForPage = <TextElement>[];
+
+    for (final block in recognizedImg.blocks) {
+      for (final line in block.lines) {
+        for (final element in line.elements) {
+          wordsForPage.add(element);
+          lineOfWord[element] = line;
+          backgroundOfWord[element] = originalTextBackground(decodedImage, element.boundingBox);
+
+          final colorOfInk = colorOfOriginalText(decodedImage, element.boundingBox, backgroundOfWord[element]!);
+          if (colorOfInk != null) {
+            textColorOfWord[element] = colorOfInk;
+          }
+
+          boldOfWord[element] = boldTextLook(decodedImage, element.boundingBox, backgroundOfWord[element]!);
+        }
+      }
+    }
+
+    return wordsForPage;
   }
 
   Color? colorOfOriginalText(image.Image decodedImage, Rect box, Color background) {
@@ -729,10 +790,13 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
       pages = List.from(editedPages);
       pixelSizePerPage = [];
       wordsPerPage = [];
+      textPerPage = [];
+
       highlightedWords = [];
       startIndex = null;
       stopIndex = null;
       activePageIndex = null;
+      
       updatedText.clear();
       manualFontAdjustment.clear();
       manualWeightAdjustment.clear();
