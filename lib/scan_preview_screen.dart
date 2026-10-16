@@ -88,7 +88,8 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
           pathToPdf: pathToPdf,
           pages: pages,
           ),
-      )
+      ),
+      result: true,
     );
   }
 
