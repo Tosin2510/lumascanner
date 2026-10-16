@@ -44,6 +44,9 @@ class _PdfDocsScreen extends State<PdfDocsScreen> {
  
   bool isBusy = false;
 
+  String busy = '';
+  double? progress;
+
   bool showAllDocuments = false;
   int noOfDocsToShowFirst = 10;
 
@@ -309,8 +312,39 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
               );
             })
           ),
-          ],
-        ),
+          
+          if (isBusy)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black87,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      progress == null
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 4,
+                              color: const Color(0xFF4A9EFF),
+                              backgroundColor: Colors.white24,
+                            ),
+                      const SizedBox(height: 20),
+                      Text(
+                        busy,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
 
         bottomNavigationBar: isSelecting ? BottomAppBar(
           color:const Color(0xFF0D1118),
@@ -351,21 +385,45 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
       );
  }
 
- Future<void> mergeSelectedDocs() async {
+  Future<void> mergeSelectedDocs() async {
   if (pathToSelectedDocs.length < 2) return;
 
   setState(() {
     isBusy = true;
+    busy = 'Preparing docs...';
+    progress = 0;
   });
 
   try {
     final allPages = <XFile>[];
     final temporaryDir = await getTemporaryDirectory();
 
+    int totalPages = 0;
     for (final pathToDoc in pathToSelectedDocs) {
+      final pdfFile = await pdfx.PdfDocument.openFile(pathToDoc);
+      totalPages = totalPages + pdfFile.pagesCount;
+      await pdfFile.close();
+    }
+
+    if (totalPages == 0) {
+      throw Exception('The selected documents have no pages');
+    }
+
+    int done = 0;
+    int number = 0;
+
+    for (final pathToDoc in pathToSelectedDocs) {
+      number++;
+      final docName = path.basenameWithoutExtension(pathToDoc);
       final pdfFile = await pdfx.PdfDocument.openFile(pathToDoc);
 
       for (int pageNo = 1; pageNo <= pdfFile.pagesCount; pageNo++) {
+        if (!mounted) return;
+        setState(() {
+          busy = 'Document $number of ${pathToSelectedDocs.length}: $docName\nPage $pageNo of ${pdfFile.pagesCount}';
+          progress = done / totalPages;
+        });
+
         final page = await pdfFile.getPage(pageNo);
 
         final pageImage = await page.render(
@@ -385,12 +443,25 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
           await File(imagePath).writeAsBytes(pageImage.bytes);
           allPages.add(XFile(imagePath));
         }
+
+        done++;
       }
 
       await pdfFile.close();
     }
 
+    if (!mounted) return;
+    setState(() {
+      busy = 'Putting the pages together into one PDF...';
+      progress = null;
+    });
+
     final mergedPdfPath = await pdfService.createdPdf(allPages);
+
+    if (!mounted) return;
+    setState(() {
+      busy = 'Saving the merged document...';
+    });
 
     final pdfDirectory = await getPdfsFromPlaceWhereSaved();
     final firstDocName = path.basenameWithoutExtension(pathToSelectedDocs.first);
@@ -405,6 +476,13 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
     await File(mergedPdfPath).copy(pathVal);
     await File(mergedPdfPath).delete();
 
+    for (final page in allPages) {
+      final tempFile = File(page.path);
+      if (tempFile.existsSync()) {
+        await tempFile.delete();
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       isBusy = false;
@@ -413,6 +491,7 @@ Future<void> openPdfDocument(ScannedDocument doc) async {
 
     await loadPdfDocumentsFromSavedDirectory();
   } catch (e) {
+    debugPrint('Merge failed: $e');
     if (!mounted) return;
     setState(() {
       isBusy = false;
