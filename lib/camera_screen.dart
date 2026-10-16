@@ -23,6 +23,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   bool isFlashLightOn = false;
   bool suggestLowLightSituation = false;
   DateTime luminanceCheck = DateTime.now();
+  bool isInitializationHappening = false;
 
   @override
   void initState() {
@@ -31,7 +32,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     init();
   }
 
-  Future<void> init() async {
+    Future<void> init() async {
+    if (isInitializationHappening) return;
+    isInitializationHappening = true;
+
     try {
       await cameraService.initializeCamera();
       if (mounted) {
@@ -39,6 +43,8 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           isReady = true;
         });
        startMonitoringBrightnessInSurrounding();
+      } else {
+        await cameraService.dispose();
       }
     } catch (e) {
       if (mounted) {
@@ -46,26 +52,31 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
           cameraPermissionDenied = true;
         });
       }
+    } finally {
+      isInitializationHappening = false;
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    cameraService.controller?.stopImageStream();
     cameraService.dispose();
     super.dispose();
   }
 
   @override
+    @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused) {
+      if (!isReady) return;
       cameraService.dispose();
       setState(() {
         isReady = false;
       });
     } else if (state == AppLifecycleState.resumed) {
-      init();
+      if (!isReady && !isInitializationHappening) {
+        init();
+      }
     }
   }
 
