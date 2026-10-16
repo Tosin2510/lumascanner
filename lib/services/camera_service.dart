@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -17,20 +17,29 @@ class CameraService{
   }
 
 // If the back camera is not available, then the first camera available should be used.
-  Future<void> initializeCamera() async {
+    Future<void> initializeCamera() async {
     _cameras = await availableCameras();
     final backCamera = _cameras.firstWhere(
       (camera) => camera.lensDirection == CameraLensDirection.back,
       orElse: () => _cameras.first
     );
 
-    cameraController = CameraController(
+    final newController = CameraController(
       backCamera,
       ResolutionPreset.high,
       enableAudio: false
     );
+    cameraController = newController;
 
-    return cameraController!.initialize();
+    await newController.initialize();
+
+    if (cameraController != newController) {
+      try {
+        await newController.dispose();
+      } catch (e) {
+        debugPrint('Camera dispose failed: $e');
+      }
+    }
   }
 
   Future<void> setFlashLight(FlashMode flash) async {
@@ -53,7 +62,17 @@ class CameraService{
   }
 
   Future<void> dispose() async {
-    await cameraController?.dispose();
+    final controllerToDispose = cameraController;
     cameraController = null;
+
+    if (controllerToDispose == null) return;
+    if (!controllerToDispose.value.isInitialized) return;
+
+    try {
+      await controllerToDispose.dispose();
+    } catch (e) {
+      debugPrint('Camera dispose failed: $e');
+    }
+    
   }
 }
