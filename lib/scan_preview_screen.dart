@@ -33,6 +33,7 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
 
   
   bool isEnhancementHappening = true;
+  bool isSavingPdf = false;
 
   @override
   void initState() {
@@ -66,31 +67,43 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
     if (mounted) setState(() => isEnhancementHappening = false);
   }
 
-  Future<void> pdfPart() async {
-    final pathToPdf = await pdfService.createdPdf(pages);
-    if (!mounted) return;
-    
-    if (widget.existingPdfPath != null) {
-      if (pathToPdf != widget.existingPdfPath) {
-        await File(pathToPdf).copy(widget.existingPdfPath!);
-        await File(pathToPdf).delete();
+    Future<void> pdfPart() async {
+    if (isSavingPdf) return;
+    isSavingPdf = true;
+
+    try {
+      final pathToPdf = await pdfService.createdPdf(pages);
+      if (!mounted) return;
+
+      if (widget.existingPdfPath != null) {
+        if (pathToPdf != widget.existingPdfPath) {
+          await File(pathToPdf).copy(widget.existingPdfPath!);
+          await File(pathToPdf).delete();
+        }
+
+        if (!mounted) return;
+        Navigator.pop(context, pages);
+        return;
       }
 
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PdfViewScreen(
+            pathToPdf: pathToPdf,
+            pages: pages,
+            ),
+        ),
+        result: true,
+      );
+    } catch (e) {
+      debugPrint('Saving PDF failed: $e');
+      isSavingPdf = false;
       if (!mounted) return;
-      Navigator.pop(context, pages);
-      return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the PDF. Please try again.')),
+      );
     }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PdfViewScreen(
-          pathToPdf: pathToPdf,
-          pages: pages,
-          ),
-      ),
-      result: true,
-    );
   }
 
   Future<void> cropPart(int index) async {
@@ -165,7 +178,20 @@ class _ScanPreviewScreenState extends State<ScanPreviewScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: isEnhancementHappening ? null : pdfPart,
+            onPressed: () {
+              if (isEnhancementHappening) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Enhancing your pages. Tap Done again when it finishes.'),
+                ),
+              );
+              return;
+            } 
+            
+            pdfPart();
+            },
+
             child: const Text(
               'Done',
               style: TextStyle(
