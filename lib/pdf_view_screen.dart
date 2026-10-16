@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:lumascanner/scan_preview_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -14,12 +15,12 @@ import 'package:lumascanner/services/pdf_service.dart';
 import 'package:path/path.dart' as path;
 
 class PdfViewScreen extends StatefulWidget {
-  final String pdfPath;
+  final String pathToPdf;
   final List<XFile> pages;
 
   const PdfViewScreen({
     super.key,
-    required this.pdfPath,
+    required this.pathToPdf,
     required this.pages
   });
   @override
@@ -61,7 +62,7 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   @override
   void initState() {
     super.initState();
-    currentpathOfPdf = widget.pdfPath;
+    currentpathOfPdf = widget.pathToPdf;
     currentNameOfPdf = path.basenameWithoutExtension(currentpathOfPdf);
     pages = List.from(widget.pages);
     loadAllPages();
@@ -710,9 +711,36 @@ class _PdfViewScreenState extends State<PdfViewScreen> {
   }
 
 
-  void editPages({List<XFile>? extraPages}) {
-    final completePages = [...pages, ...?extraPages];
-    Navigator.pop(context, completePages);
+  Future<void> editPages({List<XFile>? extraPages}) async {
+    final editedPages = await Navigator.push<List<XFile>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ScanPreviewScreen(
+          images: [...pages, ...?extraPages],
+          existingPdfPath: currentpathOfPdf,
+        ),
+      ),
+    );
+
+    if (editedPages == null || !mounted) return;
+
+    setState(() {
+
+      pages = List.from(editedPages);
+      pixelSizePerPage = [];
+      wordsPerPage = [];
+      highlightedWords = [];
+      startIndex = null;
+      stopIndex = null;
+      activePageIndex = null;
+      updatedText.clear();
+      manualFontAdjustment.clear();
+      manualWeightAdjustment.clear();
+      manualPositionAdjustment.clear();
+      isLoadingPages = true;
+    });
+
+    await loadAllPages();
   }
 
   Future<void> renameDocument() async {
