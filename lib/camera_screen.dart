@@ -146,19 +146,26 @@ double averageLuminance(CameraImage image) {
     }
   }
 
-  void openPreviewPages() {
+    Future<void> openPreviewPages() async {
     if (widget.returnPreviewPages) {
       Navigator.pop(context, capturedImages);
       
     } else {
-      Navigator.push(
+      final isPdfSaved = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
-          builder: (context) => ScanPreviewScreen(images: capturedImages),
+          builder: (context) => ScanPreviewScreen(images: List.from(capturedImages)),
         )
       );
+
+      if (isPdfSaved == true && mounted) {
+        setState(() {
+          capturedImages.clear();
+        });
+      }
     }
   }
+  
   @override
   Widget build(BuildContext context) {
     if (cameraPermissionDenied) {
