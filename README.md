@@ -38,7 +38,8 @@ flutter_launcher_icons,
 google_mlkit_text_recognition
 
 ## Download
-Get the latest APK from the Releases page.
+Get the latest APK from the [v1.0.0 Release page](https://github.com/Tosin2510/lumascanner/releases/tag/v1.0.0).
+
 Not sure which APK to pick? Choose app-arm64-v8a-release.apk. It works on almost all modern phones.
 
 ## Installing (Android)
