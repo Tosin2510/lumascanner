@@ -50,3 +50,20 @@ Open LumaScanner and allow camera access when requested.
 Install Flutter.
 Clone the repository and run flutter pub get.
 Run flutter run with a physical phone connected (the camera works best on a real phone and not on an emulator).
+
+## LICENSE
+MIT License
+
+## Limitations
+Only work for android devices for now
+
+Automatic edge detection might fail for documents with not so well defined background, but i added a manual crop fallback.
+
+Editing a text on the pdf page might cause changes to the text font size and font weight...can be adjusted manually also.
+
+## Screenshots from the app.
+
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
